@@ -159,6 +159,8 @@ async def upload_video(
     title: str = Form(...),
     description: str = Form(...),
     platforms: str = Form(...),
+    publish_type_youtube: str = Form("shorts"),
+    publish_type_facebook: str = Form("reels")
 ):
     try:
         target_accounts = json.loads(platforms)
@@ -179,7 +181,11 @@ async def upload_video(
         title=title,
         description=description,
         target_accounts=target_accounts,
-        status="pending"
+        status="pending",
+        publish_settings={
+            "youtube": publish_type_youtube,
+            "facebook": publish_type_facebook
+        }
     )
     
     repository.add_video(new_video)

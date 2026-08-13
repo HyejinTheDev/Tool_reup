@@ -303,13 +303,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateYoutubeFieldsVisibility() {
         const youtubeFields = document.getElementById('custom-fields-youtube');
-        if (!youtubeFields) return;
+        if (youtubeFields) {
+            const hasYoutubeSelected = globalAccounts.some(acc => 
+                selectedPlatforms.includes(acc.id) && acc.platform === 'youtube'
+            );
+            youtubeFields.style.display = hasYoutubeSelected ? 'block' : 'none';
+        }
         
-        const hasYoutubeSelected = globalAccounts.some(acc => 
-            selectedPlatforms.includes(acc.id) && acc.platform === 'youtube'
-        );
-        
-        youtubeFields.style.display = hasYoutubeSelected ? 'block' : 'none';
+        const facebookFields = document.getElementById('custom-fields-facebook');
+        if (facebookFields) {
+            const hasFacebookSelected = globalAccounts.some(acc => 
+                selectedPlatforms.includes(acc.id) && acc.platform === 'facebook'
+            );
+            facebookFields.style.display = hasFacebookSelected ? 'block' : 'none';
+        }
         
         // Update YouTube Title preview
         const youtubeTitlePreview = document.getElementById('youtube-title-preview');
@@ -486,11 +493,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải file lên server...';
 
         try {
+            const youtubePublishType = document.getElementById('youtube-publish-type')?.value || 'shorts';
+            const facebookPublishType = document.getElementById('facebook-publish-type')?.value || 'reels';
+
             const formData = new FormData();
             formData.append('video', file);
             formData.append('title', title || 'Video Upload'); // Fallback title
             formData.append('description', description);
             formData.append('platforms', JSON.stringify(selectedPlatforms));
+            formData.append('publish_type_youtube', youtubePublishType);
+            formData.append('publish_type_facebook', facebookPublishType);
 
             const res = await fetch('/api/videos', {
                 method: 'POST',
@@ -506,6 +518,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('video-title').value = '';
                 document.getElementById('video-desc').value = '';
                 
+                if (document.getElementById('youtube-publish-type')) document.getElementById('youtube-publish-type').value = 'shorts';
+                if (document.getElementById('facebook-publish-type')) document.getElementById('facebook-publish-type').value = 'reels';
+
                 // Reset selected platforms
                 selectedPlatforms = [];
                 renderPublishPlatforms();

@@ -4,7 +4,7 @@ from app.infrastructure.automation.base_driver import BaseDriver
 from app.adapters.gateways.uploader_gateway import UploaderGateway
 
 class YoutubeDriver(BaseDriver, UploaderGateway):
-    async def upload(self, video_path: str, title: str, description: str) -> str:
+    async def upload(self, video_path: str, title: str, description: str, publish_type: str = "shorts") -> str:
         """
         Uploads a video to YouTube Shorts / Videos.
         Returns the video URL if successful.

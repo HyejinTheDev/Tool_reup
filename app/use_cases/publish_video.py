@@ -65,9 +65,10 @@ class PublishVideoUseCase:
             result_url = ""
             error_msg = ""
             
+            publish_type = video.publish_settings.get(platform, "default")
             try:
                 await driver.start_browser()
-                result_url = await driver.upload(video.filepath, video.title, video.description)
+                result_url = await driver.upload(video.filepath, video.title, video.description, publish_type=publish_type)
                 success = True
                 await send_sse_log_func(f"Đăng thành công lên {platform.upper()}! URL: {result_url}", "SUCCESS")
             except Exception as e:

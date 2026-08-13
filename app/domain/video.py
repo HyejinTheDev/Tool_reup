@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 class Video:
-    def __init__(self, id: str, filename: str, filepath: str, title: str, description: str, target_accounts: List[str], status: str = "pending", results: Optional[Dict] = None, created_at: Optional[str] = None):
+    def __init__(self, id: str, filename: str, filepath: str, title: str, description: str, target_accounts: List[str], status: str = "pending", results: Optional[Dict] = None, created_at: Optional[str] = None, publish_settings: Optional[Dict] = None):
         self.id = id
         self.filename = filename
         self.filepath = filepath
@@ -12,6 +12,7 @@ class Video:
         self.status = status
         self.results = results or {}
         self.created_at = created_at or datetime.now().isoformat()
+        self.publish_settings = publish_settings or {"youtube": "shorts", "facebook": "reels"}
 
     def to_dict(self) -> dict:
         return {
@@ -23,7 +24,8 @@ class Video:
             "target_accounts": self.target_accounts,
             "status": self.status,
             "results": self.results,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            "publish_settings": self.publish_settings
         }
 
     @classmethod
@@ -37,5 +39,6 @@ class Video:
             target_accounts=data.get("target_accounts", []),
             status=data.get("status", "pending"),
             results=data.get("results"),
-            created_at=data.get("created_at")
+            created_at=data.get("created_at"),
+            publish_settings=data.get("publish_settings")
         )
