@@ -164,7 +164,13 @@
                             <form id="form-publish-video" class="publish-form">
                                 <!-- Channel Avatar Selector Row -->
                                 <div class="form-section">
-                                    <label class="form-section-label">Đăng lên tài khoản</label>
+                                    <div class="composer-channel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <label class="form-section-label" style="margin-bottom: 0;">Đăng lên tài khoản</label>
+                                        <div class="composer-channel-actions" style="font-size: 12px;">
+                                            <button type="button" id="btn-select-all-channels" style="background:none; border:none; color: var(--primary); cursor: pointer; margin-right: 15px; font-weight: 500; font-family: inherit; font-size: 13px; transition: opacity 0.2s;">Chọn tất cả</button>
+                                            <button type="button" id="btn-deselect-all-channels" style="background:none; border:none; color: var(--text-secondary); cursor: pointer; font-weight: 500; font-family: inherit; font-size: 13px; transition: opacity 0.2s;">Bỏ chọn tất cả</button>
+                                        </div>
+                                    </div>
                                     <div class="composer-channel-row" id="composer-channel-avatars">
                                         <!-- Dynamic Channel Avatars loaded by JS -->
                                         <p class="text-muted" style="font-size: 13px;">Đang tải tài khoản...</p>

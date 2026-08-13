@@ -584,6 +584,32 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeTitlePreview.innerText = videoTitleInput.value || 'Tiêu đề YouTube Shorts...';
     });
 
+    // 6. Select All / Deselect All Channels
+    const btnSelectAll = document.getElementById('btn-select-all-channels');
+    const btnDeselectAll = document.getElementById('btn-deselect-all-channels');
+
+    if (btnSelectAll) {
+        btnSelectAll.addEventListener('click', () => {
+            selectedPlatforms = globalAccounts.map(acc => acc.id);
+            document.querySelectorAll('.channel-avatar-badge').forEach(badge => {
+                badge.classList.add('selected');
+            });
+            updateYoutubeFieldsVisibility();
+            updateMockupProfileLabels();
+        });
+    }
+
+    if (btnDeselectAll) {
+        btnDeselectAll.addEventListener('click', () => {
+            selectedPlatforms = [];
+            document.querySelectorAll('.channel-avatar-badge').forEach(badge => {
+                badge.classList.remove('selected');
+            });
+            updateYoutubeFieldsVisibility();
+            updateMockupProfileLabels();
+        });
+    }
+
     // Initial Setup Runs
     fetchAccounts();
     fetchVideos();
