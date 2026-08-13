@@ -1,5 +1,6 @@
 import os
 import asyncio
+from typing import Optional
 from app.infrastructure.automation.base_driver import BaseDriver
 from app.adapters.gateways.uploader_gateway import UploaderGateway
 
