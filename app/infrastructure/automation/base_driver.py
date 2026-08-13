@@ -77,7 +77,9 @@ class BaseDriver:
             self.page = self.browser.main_tab
             self.log("Browser started successfully.")
         except Exception as e:
-            self.log(f"Failed to start browser: {str(e)}", "ERROR")
+            import traceback
+            tb_str = traceback.format_exc()
+            self.log(f"Failed to start browser. Exception: {type(e)} - {str(e)}\nTraceback:\n{tb_str}", "ERROR")
             raise e
 
     async def close_browser(self):
@@ -85,7 +87,7 @@ class BaseDriver:
         if self.browser:
             self.log("Closing browser...")
             try:
-                await self.browser.stop()  # nodriver uses stop() to close browser
+                self.browser.stop()  # nodriver uses stop() to close browser
                 self.log("Browser closed successfully.")
             except Exception as e:
                 self.log(f"Error closing browser: {str(e)}", "WARN")
