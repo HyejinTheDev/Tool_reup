@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Video Uploader - Đa Nền Tảng</title>
+    <!-- Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-cloud-arrow-up logo-icon"></i>
+                <h2>AutoPoster</h2>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="nav-item active" data-target="panel-dashboard">
+                    <i class="fa-solid fa-chart-simple"></i> Bảng điều khiển
+                </a>
+                <a href="#" class="nav-item" data-target="panel-accounts">
+                    <i class="fa-solid fa-users-gear"></i> Quản lý tài khoản
+                </a>
+                <a href="#" class="nav-item" data-target="panel-publish">
+                    <i class="fa-solid fa-circle-plus"></i> Đăng Video mới
+                </a>
+                <a href="#" class="nav-item" data-target="panel-settings">
+                    <i class="fa-solid fa-sliders"></i> Cấu hình hệ thống
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="status-indicator online"></span>
+                <span>Hệ thống sẵn sàng</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="app-header">
+                <h1>Tự Động Đăng Video Đa Nền Tảng</h1>
+                <div class="profile-info">
+                    <span class="tech-stack-tag">Python &amp; Nodriver</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Panel -->
+            <section id="panel-dashboard" class="content-panel active">
+                <div class="grid-stats">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-user-check text-purple"></i>
+                        <div class="stat-info">
+                            <h3 id="stat-accounts-count">0</h3>
+                            <p>Tài khoản đã lưu</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-video text-blue"></i>
+                        <div class="stat-info">
+                            <h3 id="stat-videos-count">0</h3>
+                            <p>Video tải lên</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-circle-check text-green"></i>
+                        <div class="stat-info">
+                            <h3 id="stat-success-count">0</h3>
+                            <p>Đăng thành công</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-workspace">
+                    <!-- Logs Realtime Panel -->
+                    <div class="card terminal-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-terminal"></i> Console Log Thời Gian Thực</h3>
+                            <button id="btn-clear-logs" class="btn btn-sm btn-outline"><i class="fa-solid fa-trash-can"></i> Xóa log</button>
+                        </div>
+                        <div class="terminal-body" id="log-console">
+                            <div class="log-line text-muted">[Hệ thống] Đang lắng nghe luồng log từ server...</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Tasks Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> Lịch Sử Đăng Video</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tên Video</th>
+                                        <th>Tiêu đề / Caption</th>
+                                        <th>Nền tảng</th>
+                                        <th>Trạng thái</th>
+                                        <th>Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-uploads-list">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Chưa có video nào được đăng.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Accounts Management Panel -->
+            <section id="panel-accounts" class="content-panel">
+                <div class="grid-two-cols">
+                    <!-- Accounts Form -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-user-plus"></i> Thêm Tài Khoản Mới</h3>
+                        </div>
+                        <form id="form-add-account" class="form-grid">
+                            <div class="form-group">
+                                <label for="acc-name">Tên hiển thị / Kênh</label>
+                                <input type="text" id="acc-name" placeholder="Ví dụ: Kênh Shorts chính" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="acc-platform">Nền tảng</label>
+                                <select id="acc-platform" required>
+                                    <option value="youtube">YouTube Studio (Shorts/Videos)</option>
+                                    <option value="tiktok">TikTok Studio</option>
+                                    <option value="facebook">Facebook Reels (Meta Business Suite)</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fa-solid fa-save"></i> Thêm tài khoản</button>
+                                <button type="button" id="btn-sync-gmail" class="btn btn-outline" style="flex: 1;"><i class="fa-solid fa-rotate"></i> Đồng bộ từ Gmail</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Accounts List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-users"></i> Danh Sách Tài Khoản</h3>
+                        </div>
+                        <div class="accounts-list-container" id="accounts-cards-container">
+                            <!-- Dynamic Cards -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Publish Video Panel (Buffer Style) -->
+            <section id="panel-publish" class="content-panel">
+                <div class="composer-container">
+                    <!-- Left Column: Composer Editor -->
+                    <div class="composer-editor-column">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-pen-to-square"></i> Tạo bài đăng đa nền tảng</h3>
+                            </div>
+                            <form id="form-publish-video" class="publish-form">
+                                <!-- Channel Avatar Selector Row -->
+                                <div class="form-section">
+                                    <label class="form-section-label">Đăng lên tài khoản</label>
+                                    <div class="composer-channel-row" id="composer-channel-avatars">
+                                        <!-- Dynamic Channel Avatars loaded by JS -->
+                                        <p class="text-muted" style="font-size: 13px;">Đang tải tài khoản...</p>
+                                    </div>
+                                </div>
+
+                                <!-- Text Editor Block -->
+                                <div class="form-section">
+                                    <label for="video-desc" class="form-section-label">Nội dung bài đăng (Caption / Mô tả chính)</label>
+                                    <div class="composer-textarea-wrapper">
+                                        <textarea id="video-desc" rows="5" placeholder="Viết mô tả ngắn cho thước phim, thêm hashtags (ví dụ: #shorts #trending)..." required></textarea>
+                                        <div class="composer-char-counter"><span id="char-count">0</span> / 2000</div>
+                                    </div>
+                                </div>
+
+                                <!-- Compact Media Dropzone -->
+                                <div class="form-section">
+                                    <label class="form-section-label">Video tải lên (.mp4)</label>
+                                    <div class="upload-dropzone-compact" id="dropzone-area">
+                                        <i class="fa-solid fa-cloud-arrow-up dropzone-compact-icon"></i>
+                                        <div class="dropzone-compact-text">
+                                            <p class="main-text">Kéo thả tệp tin hoặc click để chọn</p>
+                                            <p class="sub-text">Định dạng khuyên dùng: MP4, tỷ lệ 9:16</p>
+                                        </div>
+                                        <input type="file" id="video-file-input" accept="video/mp4" style="display: none;" required>
+                                    </div>
+                                    <div id="selected-file-name" class="selected-file-label-compact" style="display:none;"></div>
+                                </div>
+
+                                <!-- Platform Specific Customization Fields -->
+                                <div class="form-section" id="custom-fields-youtube" style="display: none;">
+                                    <div class="network-custom-card">
+                                        <div class="network-card-header youtube">
+                                            <i class="fa-brands fa-youtube"></i> Cấu hình YouTube Shorts bổ sung
+                                        </div>
+                                        <div class="network-card-body">
+                                            <div class="form-group">
+                                                <label for="video-title">Tiêu đề Video YouTube Shorts (Bắt buộc cho YouTube)</label>
+                                                <input type="text" id="video-title" placeholder="Nhập tiêu đề Shorts (tối đa 100 ký tự)...">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Đối tượng người xem</label>
+                                                <select id="video-audience">
+                                                    <option value="no">Không, đây không phải nội dung dành cho trẻ em (Khuyên dùng)</option>
+                                                    <option value="yes">Có, nội dung dành cho trẻ em</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="form-actions" style="margin-top: 20px;">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-publish" style="width: 100%;">
+                                        <i class="fa-solid fa-paper-plane"></i> Tải lên &amp; Tự động đăng bài ngay
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Live Mockup Feed Preview -->
+                    <div class="composer-preview-column">
+                        <div class="card preview-card">
+                            <div class="preview-tabs">
+                                <button type="button" class="preview-tab active" data-preview-platform="tiktok">
+                                    <i class="fa-brands fa-tiktok"></i> TikTok
+                                </button>
+                                <button type="button" class="preview-tab" data-preview-platform="youtube">
+                                    <i class="fa-brands fa-youtube"></i> Shorts
+                                </button>
+                                <button type="button" class="preview-tab" data-preview-platform="facebook">
+                                    <i class="fa-brands fa-facebook-f"></i> Reels
+                                </button>
+                            </div>
+
+                            <div class="preview-workspace">
+                                <!-- Mobile Phone Frame Mockup -->
+                                <div class="mobile-mockup-frame">
+                                    <div class="mobile-screen">
+                                        <!-- Video Player Background -->
+                                        <div class="mockup-video-container">
+                                            <video id="preview-video-player" loop muted autoplay></video>
+                                            <div class="mockup-video-placeholder" id="video-placeholder-screen">
+                                                <i class="fa-solid fa-video"></i>
+                                                <p>Video Preview</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- TikTok Interface Overlay -->
+                                        <div class="mockup-overlay active" id="overlay-tiktok">
+                                            <div class="overlay-right-actions">
+                                                <div class="action-item"><div class="avatar-circle-placeholder"><i class="fa-solid fa-user"></i></div><i class="fa-solid fa-plus plus-icon"></i></div>
+                                                <div class="action-item"><i class="fa-solid fa-heart"></i><span>12.5K</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-comment-dots"></i><span>452</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-bookmark"></i><span>89</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-share"></i><span>120</span></div>
+                                            </div>
+                                            <div class="overlay-bottom-details">
+                                                <h4 id="tiktok-user-handle">@kenh_tiktok_cua_ban</h4>
+                                                <p class="caption-text" id="tiktok-caption-preview">Nội dung caption TikTok sẽ hiển thị trực quan tại đây...</p>
+                                                <div class="music-info"><i class="fa-solid fa-music"></i> <span>Âm thanh gốc - @kenh_tiktok_cua_ban</span></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- YouTube Shorts Interface Overlay -->
+                                        <div class="mockup-overlay" id="overlay-youtube">
+                                            <div class="overlay-right-actions">
+                                                <div class="action-item"><i class="fa-solid fa-thumbs-up"></i><span>2.4K</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-thumbs-down"></i><span>Dislike</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-comment"></i><span>98</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-share"></i><span>Chia sẻ</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-rotate-left"></i><span>Remix</span></div>
+                                            </div>
+                                            <div class="overlay-bottom-details">
+                                                <div class="youtube-profile-row">
+                                                    <div class="avatar-circle-placeholder"><i class="fa-solid fa-user"></i></div>
+                                                    <span id="youtube-channel-name">@Kênh_Shorts_Của_Bạn</span>
+                                                    <button type="button" class="youtube-sub-btn">Đăng ký</button>
+                                                </div>
+                                                <h4 class="youtube-title-text" id="youtube-title-preview">Tiêu đề YouTube Shorts...</h4>
+                                                <p class="caption-text" id="youtube-caption-preview">Mô tả chi tiết sẽ hiển thị tại đây...</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Facebook Reels Interface Overlay -->
+                                        <div class="mockup-overlay" id="overlay-facebook">
+                                            <div class="fb-top-bar">
+                                                <i class="fa-solid fa-arrow-left"></i> Thước phim
+                                            </div>
+                                            <div class="overlay-right-actions">
+                                                <div class="action-item"><i class="fa-solid fa-thumbs-up"></i><span>Like</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-comment"></i><span>Bình luận</span></div>
+                                                <div class="action-item"><i class="fa-solid fa-share"></i><span>Chia sẻ</span></div>
+                                                <div class="action-item"><div class="avatar-circle-placeholder" style="width:28px; height:28px;"><i class="fa-solid fa-user" style="font-size:10px;"></i></div></div>
+                                            </div>
+                                            <div class="overlay-bottom-details">
+                                                <div class="fb-profile-row">
+                                                    <div class="avatar-circle-placeholder"><i class="fa-solid fa-user"></i></div>
+                                                    <span id="fb-page-name">Kênh Facebook Của Bạn</span>
+                                                    <span class="dot">•</span>
+                                                    <span class="follow-text">Theo dõi</span>
+                                                </div>
+                                                <p class="caption-text" id="fb-caption-preview">Nội dung thước phim Reels của bạn...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Panel -->
+            <section id="panel-settings" class="content-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-gears"></i> Cấu Hình Hệ Thống</h3>
+                    </div>
+                    <form id="form-settings" class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="settings-chrome-path">Đường dẫn tệp tin Chrome (chrome.exe)</label>
+                            <input type="text" id="settings-chrome-path" placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe" required>
+                            <small class="text-muted">Đường dẫn cài đặt Google Chrome trên máy tính của bạn. Mặc định là đường dẫn chuẩn trên Windows.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="settings-headless">Chế độ trình duyệt ẩn (Headless Mode)</label>
+                            <select id="settings-headless">
+                                <option value="false">Hiển thị trình duyệt (Tắt - Khuyên dùng để theo dõi &amp; đăng nhập)</option>
+                                <option value="true">Chạy ngầm ẩn (Bật - Chỉ áp dụng khi cookies đã được lưu sẵn)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-circle-check"></i> Lưu cấu hình</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

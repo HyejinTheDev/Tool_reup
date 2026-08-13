@@ -1,0 +1,16 @@
+# Python cache files
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# User data and login profiles (CRITICAL: Do not upload to Git to protect cookies/passwords)
+chrome_profiles/
+
+# Uploaded temporary videos
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables / secrets / local database
+.env
+*.log
+database.json
