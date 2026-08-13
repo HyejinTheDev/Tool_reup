@@ -1,0 +1,39 @@
+/* Reset & Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+:root {
+    --bg-dark: #0f111a;
+    --bg-card: rgba(30, 34, 54, 0.4);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f1f3f9;
+    --text-muted: #8b92b6;
+    
+    --primary: #8e2de2;
+    --primary-light: #4a00e0;
+    --primary-gradient: linear-gradient(135deg, #8e2de2, #4a00e0);
+    
+    --success: #00e676;
+    --warning: #ffb300;
+    --error: #ff1744;
+    --info: #00b0ff;
+    
+    --youtube: #ff0000;
+    --tiktok: #00f2fe;
+    --facebook: #1877f2;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    background-image: 
+        radial-gradient(circle at 10% 20%, rgba(142, 45, 226, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(74, 0, 224, 0.08) 0%, transparent 40%);
+    background-attachment: fixed;
+    height: 100vh;
+}
