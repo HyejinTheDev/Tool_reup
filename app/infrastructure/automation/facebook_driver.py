@@ -109,3 +109,80 @@ class FacebookDriver(BaseDriver, UploaderGateway):
 
         self.log("Facebook upload finished successfully!")
         return "https://business.facebook.com/latest/reels" if publish_type == "reels" else "https://business.facebook.com/latest/posts"
+
+    async def delete_post(self, title: str, post_url: Optional[str] = None) -> bool:
+        """
+        Automates deleting a video post by searching for its title/caption in Meta Business Suite Content posts page.
+        """
+        self.log("Navigating to Meta Business Suite Content page...")
+        await self.page.get("https://business.facebook.com/latest/posts")
+        await self.delay(5)
+
+        # Wait for page load
+        current_url = self.page.url
+        if "login" in current_url:
+            raise Exception("Please log in first to delete videos.")
+
+        self.log("Searching for post title...")
+        search_box = await self.wait_for_element("input[placeholder*='Tìm kiếm']")
+        if not search_box:
+            search_box = await self.wait_for_element("input[placeholder*='Search']")
+        if not search_box:
+            search_box = await self.wait_for_element("input[type='text']")
+
+        if search_box:
+            await search_box.click()
+            await self.delay(1)
+            await search_box.send_keys(title)
+            await self.delay(4)
+        else:
+            self.log("Warning: Search box not found, attempting to find post text directly.", "WARN")
+
+        self.log(f"Searching for text: '{title[:30]}'...")
+        post_element = await self.wait_for_text(title[:30], timeout=15, log_err=False)
+        if not post_element:
+            self.log(f"Could not find any post with text snippet: '{title[:30]}'", "WARN")
+            return False
+
+        self.log("Found matching post. Clicking options/three-dots menu...")
+        options_btn = await self.wait_for_element("button[aria-label*='Khác']", timeout=3, log_err=False)
+        if not options_btn:
+            options_btn = await self.wait_for_element("button[aria-label*='More']", timeout=3, log_err=False)
+        if not options_btn:
+            options_btn = await self.wait_for_element("div[role='button'] i[class*='ellipsis']", timeout=3, log_err=False)
+            
+        if options_btn:
+            await options_btn.click()
+            await self.delay(2)
+
+        self.log("Clicking 'Xóa' (Delete)...")
+        delete_btn = await self.wait_for_text("Xóa bài viết", timeout=5, log_err=False)
+        if not delete_btn:
+            delete_btn = await self.wait_for_text("Xóa thước phim", timeout=5, log_err=False)
+        if not delete_btn:
+            delete_btn = await self.wait_for_text("Xóa", timeout=5, log_err=False)
+        if not delete_btn:
+            delete_btn = await self.wait_for_text("Delete", timeout=5)
+
+        if not delete_btn:
+            raise Exception("Could not find Delete ('Xóa') action button in options menu.")
+
+        await delete_btn.click()
+        await self.delay(2)
+
+        self.log("Confirming deletion in dialog...")
+        confirm_btn = await self.wait_for_text("Xóa", timeout=5, log_err=False)
+        if not confirm_btn:
+            confirm_btn = await self.wait_for_text("Delete", timeout=5, log_err=False)
+        if not confirm_btn:
+            confirm_btn = await self.wait_for_element("button[class*='primary']", timeout=5, log_err=False)
+
+        if confirm_btn:
+            await confirm_btn.click()
+        else:
+            self.log("Warning: Confirm delete button not found in dialog.", "WARN")
+
+        self.log("Waiting for deletion to finalize...")
+        await self.delay(5)
+        self.log("Post deleted successfully from Facebook.")
+        return True

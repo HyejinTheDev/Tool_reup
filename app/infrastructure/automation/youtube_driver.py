@@ -170,3 +170,107 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         self.log("YouTube upload finished successfully!")
         return video_url or "https://youtube.com/studio"
+
+    async def delete_post(self, title: str, post_url: Optional[str] = None) -> bool:
+        """
+        Automates deleting a video by searching for its title on YouTube Studio content page.
+        """
+        self.log("Navigating to YouTube Studio...")
+        await self.page.get("https://studio.youtube.com")
+        await self.delay(5)
+
+        # Wait for channel uploads page to be active or redirect to it
+        current_url = self.page.url
+        if "studio.youtube.com" not in current_url:
+            raise Exception("Please log in first to delete videos.")
+
+        # Resolve direct channel content page URL
+        # e.g., if url is https://studio.youtube.com/channel/UCxxxx, append /videos/upload
+        if "/videos/upload" not in current_url:
+            target_url = current_url.split("?")[0]
+            if not target_url.endswith("/"):
+                target_url += "/"
+            await self.page.get(target_url + "videos/upload")
+            await self.delay(5)
+
+        self.log("On Content uploads page. Searching for video title...")
+        search_box = await self.wait_for_element("input#search-input")
+        if not search_box:
+            search_box = await self.wait_for_element("input[placeholder*='Tìm kiếm']")
+        if not search_box:
+            search_box = await self.wait_for_element("input[placeholder*='Search']")
+
+        if not search_box:
+            raise Exception("Could not find search bar in YouTube Studio Content page.")
+
+        await search_box.click()
+        await self.delay(1)
+        await search_box.send_keys(title)
+        await self.delay(3) # Wait for filtering results
+
+        self.log("Locating search result video row...")
+        video_row = await self.wait_for_element("ytcp-video-row", timeout=10)
+        if not video_row:
+            self.log(f"No video found matching title: '{title}'", "WARN")
+            return False
+
+        self.log("Hovering over video row to reveal action buttons...")
+        await video_row.click()
+        await self.delay(1)
+
+        options_btn = await self.wait_for_element("ytcp-icon-button[id='options-button']")
+        if not options_btn:
+            options_btn = await self.wait_for_element("ytcp-icon-button.style-scope.ytcp-video-row")
+            
+        if not options_btn:
+            buttons = await video_row.select_all("ytcp-icon-button")
+            for btn in buttons:
+                if "options" in str(btn.attributes) or "options" in btn.id:
+                    options_btn = btn
+                    break
+
+        if not options_btn:
+            raise Exception("Could not locate the Options (three-dots) button on the video row.")
+
+        self.log("Clicking Options button...")
+        await options_btn.click()
+        await self.delay(2)
+
+        self.log("Clicking 'Delete forever' (Xóa vĩnh viễn)...")
+        delete_option = await self.wait_for_text("Xóa vĩnh viễn", timeout=5, log_err=False)
+        if not delete_option:
+            delete_option = await self.wait_for_text("Delete forever", timeout=5)
+            
+        if not delete_option:
+            raise Exception("Could not find 'Delete forever' item in the options menu.")
+
+        await delete_option.click()
+        await self.delay(2)
+
+        self.log("Checking confirmation box...")
+        confirm_checkbox = await self.wait_for_element("tp-yt-paper-checkbox#confirm-checkbox")
+        if not confirm_checkbox:
+            confirm_checkbox = await self.wait_for_element("tp-yt-paper-checkbox")
+        if confirm_checkbox:
+            await confirm_checkbox.click()
+        else:
+            self.log("Warning: Confirmation checkbox not found. Trying to proceed.", "WARN")
+
+        await self.delay(1)
+
+        self.log("Confirming deletion...")
+        confirm_delete_btn = await self.wait_for_element("ytcp-button#delete-button")
+        if not confirm_delete_btn:
+            confirm_delete_btn = await self.wait_for_text("XÓA VĨNH VIỄN", timeout=5, log_err=False)
+        if not confirm_delete_btn:
+            confirm_delete_btn = await self.wait_for_text("DELETE FOREVER", timeout=5)
+            
+        if not confirm_delete_btn:
+            raise Exception("Could not find confirm delete button in dialog.")
+
+        await confirm_delete_btn.click()
+        self.log("Waiting for deletion process to finish...")
+        await self.delay(8)
+
+        self.log("Video deleted successfully from YouTube.")
+        return True

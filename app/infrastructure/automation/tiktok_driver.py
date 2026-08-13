@@ -86,3 +86,64 @@ class TiktokDriver(BaseDriver, UploaderGateway):
 
         self.log("TikTok upload finished successfully!")
         return "https://www.tiktok.com/tiktokstudio/posts"
+
+    async def delete_post(self, title: str, post_url: Optional[str] = None) -> bool:
+        """
+        Automates deleting a video by searching for its caption/title in TikTok Studio posts page.
+        """
+        self.log("Navigating to TikTok Studio Posts list...")
+        await self.page.get("https://www.tiktok.com/tiktokstudio/posts")
+        await self.delay(5)
+
+        # Wait for page load
+        current_url = self.page.url
+        if "login" in current_url:
+            raise Exception("Please log in first to delete videos.")
+
+        self.log(f"Searching for text snippet: '{title[:30]}'...")
+        clean_title = title[:30]
+        video_element = await self.wait_for_text(clean_title, timeout=15, log_err=False)
+        
+        if not video_element:
+            self.log(f"Could not find any post with text: '{clean_title}'", "WARN")
+            return False
+
+        self.log("Found matching post element. Locating options/more button...")
+        delete_btn = await self.wait_for_text("Xóa", timeout=5, log_err=False)
+        if not delete_btn:
+            delete_btn = await self.wait_for_text("Delete", timeout=5, log_err=False)
+            
+        if not delete_btn:
+            options_btn = await self.wait_for_element("button[class*='more']", timeout=3, log_err=False)
+            if not options_btn:
+                options_btn = await self.wait_for_element("button[class*='action']", timeout=3, log_err=False)
+            if options_btn:
+                await options_btn.click()
+                await self.delay(2)
+                delete_btn = await self.wait_for_text("Xóa", timeout=5, log_err=False)
+                if not delete_btn:
+                    delete_btn = await self.wait_for_text("Delete", timeout=5)
+        
+        if not delete_btn:
+            raise Exception("Could not find the Delete ('Xóa') action button for this post.")
+
+        self.log("Clicking Delete action...")
+        await delete_btn.click()
+        await self.delay(2)
+
+        self.log("Confirming deletion in dialog...")
+        confirm_btn = await self.wait_for_text("Xác nhận", timeout=5, log_err=False)
+        if not confirm_btn:
+            confirm_btn = await self.wait_for_text("Confirm", timeout=5, log_err=False)
+        if not confirm_btn:
+            confirm_btn = await self.wait_for_element("button[class*='primary']", timeout=5, log_err=False)
+            
+        if confirm_btn:
+            await confirm_btn.click()
+        else:
+            self.log("Warning: Confirm button not found in dialog.", "WARN")
+
+        self.log("Waiting for deletion to finalize...")
+        await self.delay(5)
+        self.log("Post deleted successfully from TikTok.")
+        return True

@@ -379,9 +379,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${platformIcons}</td>
                     <td>${statusBadges[vid.status]}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary btn-run-publish" data-id="${vid.id}" ${vid.status === 'uploading' ? 'disabled' : ''}>
-                            <i class="fa-solid fa-play"></i> Bắt đầu đăng
-                        </button>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-sm btn-primary btn-run-publish" data-id="${vid.id}" ${vid.status === 'uploading' ? 'disabled' : ''} title="Bắt đầu tự động đăng bài">
+                                <i class="fa-solid fa-play"></i> Đăng bài
+                            </button>
+                            
+                            <!-- Dropdown Xóa bài đã đăng -->
+                            <div class="delete-dropdown-container" style="position: relative; display: inline-block;">
+                                <button class="btn btn-sm btn-danger btn-toggle-delete-menu" data-id="${vid.id}" title="Tùy chọn xóa video">
+                                    <i class="fa-solid fa-trash-can"></i> Xóa <i class="fa-solid fa-caret-down"></i>
+                                </button>
+                                <div class="delete-dropdown-menu" id="delete-menu-${vid.id}" style="display: none; position: absolute; right: 0; top: 32px; background: #1a1c29; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 100; min-width: 180px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 5px 0;">
+                                    <a href="#" class="delete-opt-all" data-id="${vid.id}" style="display: block; padding: 8px 12px; color: #fff; text-decoration: none; font-size: 12px; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">Xóa trên tất cả kênh</a>
+                                    ${
+                                        vid.target_accounts.map(accId => {
+                                            const acc = globalAccounts.find(a => a.id === accId);
+                                            if (!acc) return '';
+                                            return `<a href="#" class="delete-opt-channel" data-video-id="${vid.id}" data-account-id="${acc.id}" style="display: block; padding: 8px 12px; color: var(--text-muted); text-decoration: none; font-size: 11px; transition: background 0.2s;">Gỡ trên ${acc.name} (${acc.platform.toUpperCase()})</a>`;
+                                        }).join('')
+                                    }
+                                    <a href="#" class="delete-opt-local" data-id="${vid.id}" style="display: block; padding: 8px 12px; color: #ff8a80; text-decoration: none; font-size: 12px; font-weight: 500; border-top: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">Chỉ xóa bản ghi cục bộ</a>
+                                </div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -400,6 +420,95 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 
                 fetchVideos();
+            });
+        });
+
+        // Bind dropdown menu toggles
+        document.querySelectorAll('.btn-toggle-delete-menu').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const menu = document.getElementById(`delete-menu-${id}`);
+                
+                // Hide all other open delete menus first
+                document.querySelectorAll('.delete-dropdown-menu').forEach(m => {
+                    if (m.id !== `delete-menu-${id}`) m.style.display = 'none';
+                });
+                
+                // Toggle current
+                menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        // Hide menus when clicking elsewhere
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.delete-dropdown-menu').forEach(m => {
+                m.style.display = 'none';
+            });
+        });
+
+        // Bind 'Xóa trên tất cả các kênh' click
+        document.querySelectorAll('.delete-opt-all').forEach(link => {
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const videoId = link.getAttribute('data-id');
+                
+                if (confirm('Bạn có chắc chắn muốn gỡ video này khỏi tất cả các kênh đã đăng và xóa bản ghi cục bộ? Robot sẽ mở trình duyệt tự động thực hiện.')) {
+                    document.querySelector('[data-target="panel-dashboard"]').click();
+                    
+                    const vid = videos.find(v => v.id == videoId);
+                    const accountIds = vid ? vid.target_accounts : [];
+                    
+                    const res = await fetch(`/api/videos/${videoId}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ account_ids: accountIds, delete_record: true })
+                    });
+                    
+                    alert('Đã kích hoạt tiến trình tự động gỡ bài. Vui lòng theo dõi logs trên Console.');
+                    fetchVideos();
+                }
+            });
+        });
+
+        // Bind 'Gỡ trên kênh riêng lẻ' click
+        document.querySelectorAll('.delete-opt-channel').forEach(link => {
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const videoId = link.getAttribute('data-video-id');
+                const accountId = link.getAttribute('data-account-id');
+                const acc = globalAccounts.find(a => a.id === accountId);
+                
+                if (confirm(`Bạn có chắc chắn muốn gỡ video này trên kênh ${acc ? acc.name : accountId}? Robot sẽ mở trình duyệt tự động thực hiện.`)) {
+                    document.querySelector('[data-target="panel-dashboard"]').click();
+                    
+                    const res = await fetch(`/api/videos/${videoId}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ account_ids: [accountId], delete_record: false })
+                    });
+                    
+                    alert(`Đã kích hoạt tiến trình gỡ bài trên kênh ${acc ? acc.name : accountId}.`);
+                    fetchVideos();
+                }
+            });
+        });
+
+        // Bind 'Chỉ xóa bản ghi cục bộ' click
+        document.querySelectorAll('.delete-opt-local').forEach(link => {
+            link.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const videoId = link.getAttribute('data-id');
+                
+                if (confirm('Bạn có chắc chắn muốn xóa bản ghi này khỏi cơ sở dữ liệu? (Video đã đăng trên các mạng xã hội sẽ KHÔNG bị gỡ)')) {
+                    const res = await fetch(`/api/videos/${videoId}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ account_ids: [], delete_record: true })
+                    });
+                    
+                    fetchVideos();
+                }
             });
         });
     }

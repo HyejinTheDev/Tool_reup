@@ -214,6 +214,31 @@ async def publish_video(video_id: str, background_tasks: BackgroundTasks):
     )
     return {"success": True, "message": "Đã bắt đầu tác vụ đăng video."}
 
+@app.post("/api/videos/{video_id}/delete")
+async def delete_video(video_id: str, payload: dict, background_tasks: BackgroundTasks):
+    videos = repository.get_videos()
+    video = next((v for v in videos if v.id == video_id), None)
+    if not video:
+        raise HTTPException(status_code=404, detail="Không tìm thấy thông tin video.")
+        
+    account_ids = payload.get("account_ids", [])
+    delete_record = payload.get("delete_record", False)
+    
+    from app.use_cases.delete_video import DeletePublishedVideoUseCase
+    use_case = DeletePublishedVideoUseCase(repository)
+    
+    async def sse_logger(msg, lvl="INFO"):
+        await send_sse_log(msg, lvl)
+        
+    background_tasks.add_task(
+        use_case.execute,
+        video_id,
+        account_ids,
+        delete_record,
+        sse_logger
+    )
+    return {"success": True, "message": "Đã bắt đầu tiến trình xóa video."}
+
 @app.get("/api/settings")
 def get_settings():
     return repository.get_settings()
