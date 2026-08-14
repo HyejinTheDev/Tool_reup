@@ -23,20 +23,25 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         
         # Wait up to 5 minutes (300 seconds) for manual login if not logged in
         for i in range(60):
-            current_url = self.page.url
+            current_url = ""
+            try:
+                current_url = await self.page.evaluate("window.location.href")
+            except Exception:
+                current_url = self.page.url or ""
+
+            # Check if dashboard loaded (do it upfront to bypass any URL sync lag)
+            create_btn = await self.wait_for_element("#create-icon", timeout=3, log_err=False)
+            if create_btn:
+                is_logged_in = True
+                self.log("Successfully detected logged-in session!")
+                break
+
             if "accounts.google.com" in current_url:
                 self.log(f"Not logged in. Current URL: {current_url}. Waiting for manual login in the browser (attempt {i+1}/60)...", "WARN")
                 await self.delay(5)
             elif "studio.youtube.com" in current_url:
-                # Check if dashboard loaded
-                create_btn = await self.wait_for_element("#create-icon", timeout=3, log_err=False)
-                if create_btn:
-                    is_logged_in = True
-                    self.log("Successfully detected logged-in session!")
-                    break
-                else:
-                    self.log("On Studio page, waiting for dashboard to load...")
-                    await self.delay(5)
+                self.log("On Studio page, waiting for dashboard to load...")
+                await self.delay(5)
             else:
                 self.log(f"Unknown page: {current_url}. Waiting...")
                 await self.delay(5)
