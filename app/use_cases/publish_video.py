@@ -43,10 +43,14 @@ class PublishVideoUseCase:
             
             # Setup logging callback to forward to SSE logs
             def log_cb(msg):
-                asyncio.run_coroutine_threadsafe(
-                    send_sse_log_func(msg, "INFO"), 
-                    asyncio.get_event_loop()
-                )
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(send_sse_log_func(msg, "INFO"))
+                except RuntimeError:
+                    asyncio.run_coroutine_threadsafe(
+                        send_sse_log_func(msg, "INFO"), 
+                        asyncio.get_event_loop()
+                    )
 
             # Resolve driver based on platform
             driver = None
@@ -72,7 +76,8 @@ class PublishVideoUseCase:
                 success = True
                 await send_sse_log_func(f"Đăng thành công lên {platform.upper()}! URL: {result_url}", "SUCCESS")
             except Exception as e:
-                error_msg = str(e)
+                import traceback
+                error_msg = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
                 await send_sse_log_func(f"Đăng thất bại lên {platform.upper()}: {error_msg}", "ERROR")
             finally:
                 await driver.close_browser()

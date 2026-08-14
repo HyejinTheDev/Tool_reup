@@ -37,10 +37,14 @@ class DeletePublishedVideoUseCase:
             
             # Setup logging callback
             def log_cb(msg):
-                asyncio.run_coroutine_threadsafe(
-                    send_sse_log_func(msg, "INFO"), 
-                    asyncio.get_event_loop()
-                )
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(send_sse_log_func(msg, "INFO"))
+                except RuntimeError:
+                    asyncio.run_coroutine_threadsafe(
+                        send_sse_log_func(msg, "INFO"), 
+                        asyncio.get_event_loop()
+                    )
 
             # Resolve driver
             driver = None
