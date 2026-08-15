@@ -76,6 +76,12 @@ class BaseDriver:
             )
             # nodriver starts with a default main tab
             self.page = self.browser.main_tab
+            
+            # Enable DOM domain and fetch document once at startup
+            import nodriver.cdp.dom as dom
+            await self.page.send(dom.enable())
+            await self.page.send(dom.get_document())
+            
             self.log("Browser started successfully.")
         except Exception as e:
             import traceback
@@ -167,11 +173,7 @@ class BaseDriver:
                 
             remote_obj = res_tuple[0]
             
-            # 2. Enable DOM and fetch document
-            await self.page.send(dom.enable())
-            await self.page.send(dom.get_document())
-            
-            # 3. Resolve Node ID
+            # 2. Resolve Node ID
             node_id = await self.page.send(dom.request_node(object_id=remote_obj.object_id))
             if not node_id:
                 return None
