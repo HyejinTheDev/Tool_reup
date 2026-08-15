@@ -218,21 +218,33 @@ class BaseDriver:
         """Finds an element piercing shadow roots and clicks it in JS, waiting if necessary."""
         js_code = f"""
         (function() {{
-            function findElement(selector, startNode = document) {{
-                let el = startNode.querySelector(selector);
-                if (el) return el;
+            function findElements(selector, startNode = document, results = []) {{
+                const el = startNode.querySelector(selector);
+                if (el) results.push(el);
                 
                 const all = startNode.querySelectorAll('*');
                 for (const node of all) {{
                     if (node.shadowRoot) {{
-                        el = findElement(selector, node.shadowRoot);
-                        if (el) return el;
+                        findElements(selector, node.shadowRoot, results);
                     }}
                 }}
-                return null;
+                return results;
             }}
-            const el = findElement("{selector}");
-            if (el) {{
+            function isVisible(el) {{
+                return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            }}
+            const matches = findElements("{selector}");
+            let el = null;
+            if (matches.length > 0) {{
+                for (let i = matches.length - 1; i >= 0; i--) {{
+                    if (isVisible(matches[i])) {{
+                        el = matches[i];
+                        break;
+                    }}
+                }}
+                if (!el) el = matches[matches.length - 1];
+            }}
+            if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
                 // 1. Click outer custom element and dispatch native click event
                 el.click();
                 el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
@@ -246,6 +258,14 @@ class BaseDriver:
                         inner.click();
                         inner.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
                     }}
+                }}
+                
+                // 3. Force checked state if it's a radio/checkbox/toggle
+                const tagName = el.tagName.toLowerCase();
+                if (tagName.includes('radio') || tagName.includes('checkbox') || tagName.includes('toggle')) {{
+                    el.checked = true;
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
                 }}
                 return true;
             }}
@@ -269,21 +289,33 @@ class BaseDriver:
         safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
         js_code = f"""
         (function() {{
-            function findElement(selector, startNode = document) {{
-                let el = startNode.querySelector(selector);
-                if (el) return el;
+            function findElements(selector, startNode = document, results = []) {{
+                const el = startNode.querySelector(selector);
+                if (el) results.push(el);
                 
                 const all = startNode.querySelectorAll('*');
                 for (const node of all) {{
                     if (node.shadowRoot) {{
-                        el = findElement(selector, node.shadowRoot);
-                        if (el) return el;
+                        findElements(selector, node.shadowRoot, results);
                     }}
                 }}
-                return null;
+                return results;
             }}
-            const el = findElement("{selector}");
-            if (el) {{
+            function isVisible(el) {{
+                return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            }}
+            const matches = findElements("{selector}");
+            let el = null;
+            if (matches.length > 0) {{
+                for (let i = matches.length - 1; i >= 0; i--) {{
+                    if (isVisible(matches[i])) {{
+                        el = matches[i];
+                        break;
+                    }}
+                }}
+                if (!el) el = matches[matches.length - 1];
+            }}
+            if (el && isVisible(el)) {{
                 el.focus();
                 el.innerText = "{safe_text}";
                 el.value = "{safe_text}";
@@ -304,4 +336,76 @@ class BaseDriver:
                 pass
             await asyncio.sleep(0.5)
         self.log(f"Timeout trying to JS type: '{selector}'", "WARN")
+        return False
+
+    async def js_click_text(self, text: str, timeout: float = 30.0) -> bool:
+        """Finds an element containing specific text (piercing shadow roots) and clicks it."""
+        safe_text = text.replace("'", "\\'")
+        js_code = f"""
+        (function() {{
+            function collectMatches(txt, node = document, results = []) {{
+                const all = node.querySelectorAll('*');
+                for (const child of all) {{
+                    const tagName = child.tagName.toLowerCase();
+                    if ((tagName === 'tp-yt-paper-radio-button' || 
+                         tagName === 'ytcp-button' ||
+                         tagName === 'button' ||
+                         tagName === 'div' ||
+                         tagName === 'span') && 
+                        child.innerText && child.innerText.trim().toLowerCase() === txt.toLowerCase()) {{
+                        results.push(child);
+                    }}
+                    if (child.shadowRoot) {{
+                        collectMatches(txt, child.shadowRoot, results);
+                    }}
+                }}
+                return results;
+            }}
+            function isVisible(el) {{
+                return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            }}
+            const matches = collectMatches("{safe_text}");
+            let el = null;
+            if (matches.length > 0) {{
+                for (let i = matches.length - 1; i >= 0; i--) {{
+                    if (isVisible(matches[i])) {{
+                        el = matches[i];
+                        break;
+                    }}
+                }}
+                if (!el) el = matches[matches.length - 1];
+            }}
+            if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
+                el.click();
+                el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
+                if (el.shadowRoot) {{
+                    const inner = el.shadowRoot.querySelector('#radioContainer') || 
+                                  el.shadowRoot.querySelector('#button') ||
+                                  el.shadowRoot.querySelector('.button');
+                    if (inner) {{
+                        inner.click();
+                        inner.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
+                    }}
+                }}
+                const tagName = el.tagName.toLowerCase();
+                if (tagName.includes('radio') || tagName.includes('checkbox') || tagName.includes('toggle')) {{
+                    el.checked = true;
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                }}
+                return true;
+            }}
+            return false;
+        }})()
+        """
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            try:
+                res = await self.page.evaluate(js_code)
+                if res:
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+        self.log(f"Timeout trying to JS click by text: '{text}'", "WARN")
         return False
