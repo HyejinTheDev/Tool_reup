@@ -213,3 +213,95 @@ class BaseDriver:
         if log_err:
             self.log(f"Timeout waiting for element piercing shadow: '{selector}'", "WARN")
         return None
+
+    async def js_click(self, selector: str, timeout: float = 30.0) -> bool:
+        """Finds an element piercing shadow roots and clicks it in JS, waiting if necessary."""
+        js_code = f"""
+        (function() {{
+            function findElement(selector, startNode = document) {{
+                let el = startNode.querySelector(selector);
+                if (el) return el;
+                
+                const all = startNode.querySelectorAll('*');
+                for (const node of all) {{
+                    if (node.shadowRoot) {{
+                        el = findElement(selector, node.shadowRoot);
+                        if (el) return el;
+                    }}
+                }}
+                return null;
+            }}
+            const el = findElement("{selector}");
+            if (el) {{
+                // 1. Click outer custom element and dispatch native click event
+                el.click();
+                el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
+                
+                // 2. If it is a Polymer element, click its internal shadow container
+                if (el.shadowRoot) {{
+                    const inner = el.shadowRoot.querySelector('#radioContainer') || 
+                                  el.shadowRoot.querySelector('#button') ||
+                                  el.shadowRoot.querySelector('.button');
+                    if (inner) {{
+                        inner.click();
+                        inner.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
+                    }}
+                }}
+                return true;
+            }}
+            return false;
+        }})()
+        """
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            try:
+                res = await self.page.evaluate(js_code)
+                if res:
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+        self.log(f"Timeout trying to JS click: '{selector}'", "WARN")
+        return False
+
+    async def js_type(self, selector: str, text: str, timeout: float = 30.0) -> bool:
+        """Finds an element piercing shadow roots and inputs text in JS, waiting if necessary."""
+        safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+        js_code = f"""
+        (function() {{
+            function findElement(selector, startNode = document) {{
+                let el = startNode.querySelector(selector);
+                if (el) return el;
+                
+                const all = startNode.querySelectorAll('*');
+                for (const node of all) {{
+                    if (node.shadowRoot) {{
+                        el = findElement(selector, node.shadowRoot);
+                        if (el) return el;
+                    }}
+                }}
+                return null;
+            }}
+            const el = findElement("{selector}");
+            if (el) {{
+                el.focus();
+                el.innerText = "{safe_text}";
+                el.value = "{safe_text}";
+                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                return true;
+            }}
+            return false;
+        }})()
+        """
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            try:
+                res = await self.page.evaluate(js_code)
+                if res:
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+        self.log(f"Timeout trying to JS type: '{selector}'", "WARN")
+        return False
