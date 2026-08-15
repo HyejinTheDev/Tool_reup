@@ -29,9 +29,22 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             except Exception:
                 current_url = self.page.url or ""
 
-            # Check if dashboard loaded (do it upfront to bypass any URL sync lag)
-            create_btn = await self.wait_for_element_pierce("#create-icon", timeout=3, log_err=False)
+            # Check if dashboard loaded (by checking create-icon, upload-button, or navigation menu)
+            dashboard_loaded = False
+            
+            create_btn = await self.wait_for_element_pierce("#create-icon", timeout=2, log_err=False)
             if create_btn:
+                dashboard_loaded = True
+            else:
+                center_upload = await self.wait_for_element_pierce("#upload-button", timeout=2, log_err=False)
+                if center_upload:
+                    dashboard_loaded = True
+                else:
+                    menu_item = await self.wait_for_element_pierce("#menu-item-dashboard", timeout=2, log_err=False)
+                    if menu_item:
+                        dashboard_loaded = True
+                        
+            if dashboard_loaded:
                 is_logged_in = True
                 self.log("Successfully detected logged-in session!")
                 break
