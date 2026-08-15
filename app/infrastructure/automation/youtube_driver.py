@@ -102,8 +102,13 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await self.js_type("#description-textarea #textbox", description)
 
         # Audience: 'Not made for kids' radio button
+        # Audience: 'Not made for kids' radio button
         self.log("Selecting audience option 'Not made for kids'...")
-        await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
+        kids_clicked = await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
+        if not kids_clicked:
+            kids_clicked = await self.js_click_text("No, it's not made for kids", timeout=5)
+        if not kids_clicked:
+            await self.js_click_text("Không, đây không phải nội dung dành cho trẻ em", timeout=5)
 
         await self.delay(2)
 
@@ -122,7 +127,11 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 6. Publish / Visibility Step
         self.log("Setting visibility to Public...")
-        await self.js_click('tp-yt-paper-radio-button[name="PUBLIC"]')
+        pub_clicked = await self.js_click('tp-yt-paper-radio-button[name="PUBLIC"]')
+        if not pub_clicked:
+            pub_clicked = await self.js_click_text("Public", timeout=5)
+        if not pub_clicked:
+            await self.js_click_text("Công khai", timeout=5)
         await self.delay(2)
 
         # 7. Get Video Link before publishing
@@ -143,6 +152,10 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # 8. Click Done / Publish
         self.log("Clicking Publish/Done button...")
         done_clicked = await self.js_click("#done-button")
+        if not done_clicked:
+            done_clicked = await self.js_click_text("Publish", timeout=5)
+        if not done_clicked:
+            done_clicked = await self.js_click_text("Xuất bản", timeout=5)
         if not done_clicked:
             await self.js_click("ytcp-button#save-button")
 
