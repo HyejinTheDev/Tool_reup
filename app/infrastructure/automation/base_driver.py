@@ -173,7 +173,10 @@ class BaseDriver:
                 
             remote_obj = res_tuple[0]
             
-            # 2. Resolve Node ID
+            # 2. Sync DOM document tree (needed after page navigations/refreshes)
+            await self.page.send(dom.get_document())
+            
+            # 3. Resolve Node ID
             node_id = await self.page.send(dom.request_node(object_id=remote_obj.object_id))
             if not node_id:
                 return None
