@@ -46,7 +46,7 @@ class TiktokDriver(BaseDriver, UploaderGateway):
         if not file_input:
             raise Exception("Could not find file input element on TikTok upload page.")
 
-        await file_input.set_file_input([os.path.abspath(video_path)])
+        await file_input.send_file(os.path.abspath(video_path))
         self.log("Video file selected. Waiting for upload and processing (may take 15-30 seconds)...")
         await self.delay(15)
 

@@ -103,7 +103,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             raise Exception("Could not find file input element on YouTube upload dialog.")
 
         # Set file input
-        await file_input.set_file_input([os.path.abspath(video_path)])
+        await file_input.send_file(os.path.abspath(video_path))
         self.log("Video file selected. Waiting for upload form to initialize...")
         await self.delay(5)
 
