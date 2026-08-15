@@ -111,7 +111,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         self.log("Filling title and description...")
         
         # Title input
-        title_box = await self.wait_for_element_pierce("div#title-textarea div#textbox")
+        title_box = await self.wait_for_element_pierce("#title-textarea #textbox")
         if title_box:
             await title_box.click()
             await title_box.send_keys(title)
@@ -119,7 +119,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             self.log("Warning: Title input not found, skipping title edit", "WARN")
 
         # Description input
-        desc_box = await self.wait_for_element_pierce("div#description-textarea div#textbox")
+        desc_box = await self.wait_for_element_pierce("#description-textarea #textbox")
         if desc_box:
             await desc_box.click()
             await desc_box.send_keys(description)
