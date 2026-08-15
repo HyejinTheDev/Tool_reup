@@ -58,6 +58,15 @@ class BaseDriver:
         else:
             profile_path = os.path.join(profiles_dir, self.profile_name)
             
+        # Dọn dẹp tệp khóa SingletonLock của Chrome từ các lần tắt đột ngột trước đó
+        lock_file = os.path.join(profile_path, "SingletonLock")
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+                self.log("Đã dọn dẹp tệp khóa SingletonLock của Chrome từ lần chạy trước.", "INFO")
+            except Exception as e:
+                self.log(f"Cảnh báo: Không thể xóa tệp khóa SingletonLock: {e}", "WARN")
+            
         self.log(f"Starting browser with profile path: {profile_path} (Headless: {self.headless})")
 
         # Config nodriver start
