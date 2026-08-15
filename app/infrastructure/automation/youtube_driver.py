@@ -102,9 +102,8 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await self.js_type("#description-textarea #textbox", description)
 
         # Audience: 'Not made for kids' radio button
-        # Audience: 'Not made for kids' radio button
         self.log("Selecting audience option 'Not made for kids'...")
-        kids_clicked = await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
+        kids_clicked = await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]')
         if not kids_clicked:
             kids_clicked = await self.js_click_text("No, it's not made for kids", timeout=5)
         if not kids_clicked:
