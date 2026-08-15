@@ -130,3 +130,71 @@ class BaseDriver:
     async def delay(self, seconds: float):
         """Standard delay helper."""
         await asyncio.sleep(seconds)
+
+    async def select_pierce(self, selector: str):
+        """Selects an element piercing all shadow roots natively, returning a nodriver Element."""
+        import nodriver.cdp.runtime as runtime
+        import nodriver.cdp.dom as dom
+        from nodriver.core.element import Element
+        
+        js_code = f"""
+        (function() {{
+            function findElement(selector, startNode = document) {{
+                let el = startNode.querySelector(selector);
+                if (el) return el;
+                
+                const all = startNode.querySelectorAll('*');
+                for (const node of all) {{
+                    if (node.shadowRoot) {{
+                        el = findElement(selector, node.shadowRoot);
+                        if (el) return el;
+                    }}
+                }}
+                return null;
+            }}
+            return findElement("{selector}");
+        }})()
+        """
+        try:
+            # 1. Evaluate to get remote object
+            res_tuple = await self.page.send(runtime.evaluate(
+                expression=js_code,
+                return_by_value=False
+            ))
+            if not res_tuple or not res_tuple[0] or not res_tuple[0].object_id:
+                return None
+                
+            remote_obj = res_tuple[0]
+            
+            # 2. Enable DOM and fetch document
+            await self.page.send(dom.enable())
+            await self.page.send(dom.get_document())
+            
+            # 3. Resolve Node ID
+            node_id = await self.page.send(dom.request_node(object_id=remote_obj.object_id))
+            if not node_id:
+                return None
+                
+            # 4. Describe node recursively to wrap it fully
+            node_desc = await self.page.send(dom.describe_node(node_id=node_id, depth=-1))
+            if not node_desc:
+                return None
+                
+            # 5. Return wrapped Element
+            return Element(node=node_desc, tab=self.page)
+        except Exception as e:
+            self.log(f"Error piercing shadow DOM for '{selector}': {e}", "DEBUG")
+            return None
+
+    async def wait_for_element_pierce(self, selector: str, timeout: float = 30.0, log_err: bool = True):
+        """Waits for an element piercing shadow roots with custom timeout."""
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            el = await self.select_pierce(selector)
+            if el:
+                return el
+            await asyncio.sleep(0.5)
+        
+        if log_err:
+            self.log(f"Timeout waiting for element piercing shadow: '{selector}'", "WARN")
+        return None
