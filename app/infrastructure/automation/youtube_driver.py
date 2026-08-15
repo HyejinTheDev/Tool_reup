@@ -51,18 +51,33 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 2. Open Upload Dialog
         self.log("Clicking 'Create' button...")
-        create_btn = await self.wait_for_element_pierce("#create-icon")
-        await create_btn.click()
-        await self.delay(1)
+        create_btn = await self.wait_for_element_pierce("#create-icon", timeout=5, log_err=False)
+        if create_btn:
+            await create_btn.click()
+            await self.delay(1)
 
-        self.log("Clicking 'Upload videos'...")
-        upload_btn = await self.wait_for_element_pierce("#upload-button")
-        if not upload_btn:
-            upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
-        if not upload_btn:
-            upload_btn = await self.wait_for_text("Upload videos", timeout=5)
+            self.log("Clicking 'Upload videos'...")
+            upload_btn = await self.wait_for_element_pierce("#upload-button")
+            if not upload_btn:
+                upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
+            if not upload_btn:
+                upload_btn = await self.wait_for_text("Upload videos", timeout=5)
+                
+            await upload_btn.click()
+        else:
+            self.log("Header 'Create' button not found. Checking for center 'Upload videos' button (empty channel dashboard)...")
+            center_upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
+            if not center_upload_btn:
+                center_upload_btn = await self.wait_for_text("Upload videos", timeout=5, log_err=False)
+            if not center_upload_btn:
+                center_upload_btn = await self.wait_for_element_pierce("#upload-button", timeout=5, log_err=False)
             
-        await upload_btn.click()
+            if center_upload_btn:
+                await center_upload_btn.click()
+                self.log("Successfully opened upload dialog using center button!")
+            else:
+                raise Exception("Could not find any button to open the upload dialog (tried header 'Create' and center 'Upload videos').")
+        
         await self.delay(2)
 
         # 3. Select File

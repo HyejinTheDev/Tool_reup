@@ -69,6 +69,7 @@ class BaseDriver:
                 headless=self.headless,
                 browser_args=[
                     "--start-maximized",
+                    "--window-size=1920,1080",
                     "--no-first-run",
                     "--no-default-browser-check"
                 ]
