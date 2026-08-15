@@ -64,29 +64,15 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 2. Open Upload Dialog
         self.log("Clicking 'Create' button...")
-        create_btn = await self.wait_for_element_pierce("#create-icon", timeout=5, log_err=False)
-        if create_btn:
-            await create_btn.click()
+        clicked = await self.js_click("#create-icon", timeout=5)
+        if clicked:
             await self.delay(1)
-
             self.log("Clicking 'Upload videos'...")
-            upload_btn = await self.wait_for_element_pierce("#upload-button")
-            if not upload_btn:
-                upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
-            if not upload_btn:
-                upload_btn = await self.wait_for_text("Upload videos", timeout=5)
-                
-            await upload_btn.click()
+            await self.js_click("#upload-button", timeout=5)
         else:
             self.log("Header 'Create' button not found. Checking for center 'Upload videos' button (empty channel dashboard)...")
-            center_upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
-            if not center_upload_btn:
-                center_upload_btn = await self.wait_for_text("Upload videos", timeout=5, log_err=False)
-            if not center_upload_btn:
-                center_upload_btn = await self.wait_for_element_pierce("#upload-button", timeout=5, log_err=False)
-            
-            if center_upload_btn:
-                await center_upload_btn.click()
+            center_clicked = await self.js_click("#upload-button", timeout=5)
+            if center_clicked:
                 self.log("Successfully opened upload dialog using center button!")
             else:
                 raise Exception("Could not find any button to open the upload dialog (tried header 'Create' and center 'Upload videos').")
@@ -95,10 +81,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 3. Select File
         self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element_pierce("input[type='file'][name='Filedata']")
-        if not file_input:
-            file_input = await self.wait_for_element_pierce("input[type='file']")
-            
+        file_input = await self.wait_for_element_pierce("input[type='file']", timeout=15)
         if not file_input:
             raise Exception("Could not find file input element on YouTube upload dialog.")
 
@@ -111,84 +94,57 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         self.log("Filling title and description...")
         
         # Title input
-        title_box = await self.wait_for_element_pierce("#title-textarea #textbox")
-        if title_box:
-            await title_box.click()
-            await title_box.send_keys(title)
-        else:
+        title_typed = await self.js_type("#title-textarea #textbox", title)
+        if not title_typed:
             self.log("Warning: Title input not found, skipping title edit", "WARN")
 
         # Description input
-        desc_box = await self.wait_for_element_pierce("#description-textarea #textbox")
-        if desc_box:
-            await desc_box.click()
-            await desc_box.send_keys(description)
+        await self.js_type("#description-textarea #textbox", description)
 
         # Audience: 'Not made for kids' radio button
         self.log("Selecting audience option 'Not made for kids'...")
-        kids_radio = await self.wait_for_element_pierce('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
-        if kids_radio:
-            await kids_radio.click()
-        else:
-            kids_radio = await self.wait_for_text("Không, đây không phải nội dung dành cho trẻ em", timeout=5, log_err=False)
-            if not kids_radio:
-                kids_radio = await self.wait_for_text("No, it's not made for kids", timeout=5)
-            if kids_radio:
-                await kids_radio.click()
+        await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
 
         await self.delay(2)
 
         # 5. Navigate through steps (Click Next)
         self.log("Navigating Details -> Video Elements...")
-        next_btn = await self.wait_for_element_pierce("#next-button")
-        await next_btn.click()
+        await self.js_click("#next-button")
         await self.delay(2)
 
         self.log("Navigating Video Elements -> Checks...")
-        next_btn = await self.wait_for_element_pierce("#next-button")
-        await next_btn.click()
+        await self.js_click("#next-button")
         await self.delay(2)
 
         self.log("Navigating Checks -> Visibility...")
-        next_btn = await self.wait_for_element_pierce("#next-button")
-        await next_btn.click()
+        await self.js_click("#next-button")
         await self.delay(2)
 
         # 6. Publish / Visibility Step
         self.log("Setting visibility to Public...")
-        public_radio = await self.wait_for_element_pierce('tp-yt-paper-radio-button[name="PUBLIC"]')
-        if public_radio:
-            await public_radio.click()
-        else:
-            public_radio = await self.wait_for_text("Công khai", timeout=5, log_err=False)
-            if not public_radio:
-                public_radio = await self.wait_for_text("Public", timeout=5)
-            if public_radio:
-                await public_radio.click()
-
+        await self.js_click('tp-yt-paper-radio-button[name="PUBLIC"]')
         await self.delay(2)
 
         # 7. Get Video Link before publishing
         video_url = ""
         try:
-            url_elem = await self.wait_for_element_pierce("a.style-scope.ytd-video-share-url", timeout=10)
-            if url_elem:
-                video_url = url_elem.text
+            video_url = await self.page.evaluate("""
+                (function() {
+                    const el = document.querySelector('a.style-scope.ytd-video-share-url') || 
+                               document.querySelector('span.style-scope.ytcp-video-info');
+                    return el ? el.href || el.innerText : '';
+                })()
+            """)
+            if video_url:
                 self.log(f"Found YouTube Video URL: {video_url}")
         except Exception:
             pass
 
         # 8. Click Done / Publish
         self.log("Clicking Publish/Done button...")
-        done_btn = await self.wait_for_element_pierce("#done-button")
-        if done_btn:
-            await done_btn.click()
-        else:
-            done_btn = await self.wait_for_text("Xuất bản", timeout=5, log_err=False)
-            if not done_btn:
-                done_btn = await self.wait_for_text("Publish", timeout=5)
-            if done_btn:
-                await done_btn.click()
+        done_clicked = await self.js_click("#done-button")
+        if not done_clicked:
+            await self.js_click("ytcp-button#save-button")
 
         self.log("Waiting for publish completion dialog...")
         await self.delay(7)
@@ -196,9 +152,13 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # Double check if we can get the URL if we didn't get it before
         if not video_url:
             try:
-                link_elem = await self.wait_for_element_pierce("span.style-scope.ytcp-video-info", timeout=5)
-                if link_elem:
-                    video_url = link_elem.text
+                video_url = await self.page.evaluate("""
+                    (function() {
+                        const el = document.querySelector('span.style-scope.ytcp-video-info') ||
+                                   document.querySelector('a.style-scope.ytd-video-share-url');
+                        return el ? el.innerText || el.href : '';
+                    })()
+                """)
             except Exception:
                 pass
 
