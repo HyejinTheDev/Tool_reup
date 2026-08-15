@@ -172,7 +172,10 @@ class BaseDriver:
         }})()
         """
         try:
-            # 1. Evaluate to get remote object
+            # 1. Sync DOM document tree (needed after page navigations/refreshes)
+            await self.page.send(dom.get_document())
+
+            # 2. Evaluate to get remote object
             res_tuple = await self.page.send(runtime.evaluate(
                 expression=js_code,
                 return_by_value=False
@@ -181,9 +184,6 @@ class BaseDriver:
                 return None
                 
             remote_obj = res_tuple[0]
-            
-            # 2. Sync DOM document tree (needed after page navigations/refreshes)
-            await self.page.send(dom.get_document())
             
             # 3. Resolve Node ID
             node_id = await self.page.send(dom.request_node(object_id=remote_obj.object_id))
