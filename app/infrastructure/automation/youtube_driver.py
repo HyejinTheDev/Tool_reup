@@ -30,7 +30,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
                 current_url = self.page.url or ""
 
             # Check if dashboard loaded (do it upfront to bypass any URL sync lag)
-            create_btn = await self.wait_for_element("#create-icon", timeout=3, log_err=False)
+            create_btn = await self.wait_for_element_pierce("#create-icon", timeout=3)
             if create_btn:
                 is_logged_in = True
                 self.log("Successfully detected logged-in session!")
@@ -51,12 +51,12 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 2. Open Upload Dialog
         self.log("Clicking 'Create' button...")
-        create_btn = await self.wait_for_element("#create-icon")
+        create_btn = await self.wait_for_element_pierce("#create-icon")
         await create_btn.click()
         await self.delay(1)
 
         self.log("Clicking 'Upload videos'...")
-        upload_btn = await self.wait_for_element("#upload-button")
+        upload_btn = await self.wait_for_element_pierce("#upload-button")
         if not upload_btn:
             upload_btn = await self.wait_for_text("Tải video lên", timeout=5, log_err=False)
         if not upload_btn:
@@ -67,9 +67,9 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 3. Select File
         self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element("input[type='file'][name='Filedata']")
+        file_input = await self.wait_for_element_pierce("input[type='file'][name='Filedata']")
         if not file_input:
-            file_input = await self.wait_for_element("input[type='file']")
+            file_input = await self.wait_for_element_pierce("input[type='file']")
             
         if not file_input:
             raise Exception("Could not find file input element on YouTube upload dialog.")
@@ -83,7 +83,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         self.log("Filling title and description...")
         
         # Title input
-        title_box = await self.wait_for_element("div#title-textarea div#textbox")
+        title_box = await self.wait_for_element_pierce("div#title-textarea div#textbox")
         if title_box:
             await title_box.click()
             await title_box.send_keys(title)
@@ -91,14 +91,14 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             self.log("Warning: Title input not found, skipping title edit", "WARN")
 
         # Description input
-        desc_box = await self.wait_for_element("div#description-textarea div#textbox")
+        desc_box = await self.wait_for_element_pierce("div#description-textarea div#textbox")
         if desc_box:
             await desc_box.click()
             await desc_box.send_keys(description)
 
         # Audience: 'Not made for kids' radio button
         self.log("Selecting audience option 'Not made for kids'...")
-        kids_radio = await self.wait_for_element('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
+        kids_radio = await self.wait_for_element_pierce('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MADE_FOR_KIDS"]')
         if kids_radio:
             await kids_radio.click()
         else:
@@ -112,23 +112,23 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 5. Navigate through steps (Click Next)
         self.log("Navigating Details -> Video Elements...")
-        next_btn = await self.wait_for_element("#next-button")
+        next_btn = await self.wait_for_element_pierce("#next-button")
         await next_btn.click()
         await self.delay(2)
 
         self.log("Navigating Video Elements -> Checks...")
-        next_btn = await self.wait_for_element("#next-button")
+        next_btn = await self.wait_for_element_pierce("#next-button")
         await next_btn.click()
         await self.delay(2)
 
         self.log("Navigating Checks -> Visibility...")
-        next_btn = await self.wait_for_element("#next-button")
+        next_btn = await self.wait_for_element_pierce("#next-button")
         await next_btn.click()
         await self.delay(2)
 
         # 6. Publish / Visibility Step
         self.log("Setting visibility to Public...")
-        public_radio = await self.wait_for_element('tp-yt-paper-radio-button[name="PUBLIC"]')
+        public_radio = await self.wait_for_element_pierce('tp-yt-paper-radio-button[name="PUBLIC"]')
         if public_radio:
             await public_radio.click()
         else:
@@ -143,7 +143,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # 7. Get Video Link before publishing
         video_url = ""
         try:
-            url_elem = await self.wait_for_element("a.style-scope.ytd-video-share-url", timeout=10, log_err=False)
+            url_elem = await self.wait_for_element_pierce("a.style-scope.ytd-video-share-url", timeout=10)
             if url_elem:
                 video_url = url_elem.text
                 self.log(f"Found YouTube Video URL: {video_url}")
@@ -152,7 +152,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 8. Click Done / Publish
         self.log("Clicking Publish/Done button...")
-        done_btn = await self.wait_for_element("#done-button")
+        done_btn = await self.wait_for_element_pierce("#done-button")
         if done_btn:
             await done_btn.click()
         else:
@@ -168,7 +168,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # Double check if we can get the URL if we didn't get it before
         if not video_url:
             try:
-                link_elem = await self.wait_for_element("span.style-scope.ytcp-video-info", timeout=5, log_err=False)
+                link_elem = await self.wait_for_element_pierce("span.style-scope.ytcp-video-info", timeout=5)
                 if link_elem:
                     video_url = link_elem.text
             except Exception:
@@ -191,7 +191,6 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             raise Exception("Please log in first to delete videos.")
 
         # Resolve direct channel content page URL
-        # e.g., if url is https://studio.youtube.com/channel/UCxxxx, append /videos/upload
         if "/videos/upload" not in current_url:
             target_url = current_url.split("?")[0]
             if not target_url.endswith("/"):
@@ -200,11 +199,11 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             await self.delay(5)
 
         self.log("On Content uploads page. Searching for video title...")
-        search_box = await self.wait_for_element("input#search-input")
+        search_box = await self.wait_for_element_pierce("input#search-input")
         if not search_box:
-            search_box = await self.wait_for_element("input[placeholder*='Tìm kiếm']")
+            search_box = await self.wait_for_element_pierce("input[placeholder*='Tìm kiếm']")
         if not search_box:
-            search_box = await self.wait_for_element("input[placeholder*='Search']")
+            search_box = await self.wait_for_element_pierce("input[placeholder*='Search']")
 
         if not search_box:
             raise Exception("Could not find search bar in YouTube Studio Content page.")
@@ -215,7 +214,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await self.delay(3) # Wait for filtering results
 
         self.log("Locating search result video row...")
-        video_row = await self.wait_for_element("ytcp-video-row", timeout=10)
+        video_row = await self.wait_for_element_pierce("ytcp-video-row", timeout=10)
         if not video_row:
             self.log(f"No video found matching title: '{title}'", "WARN")
             return False
@@ -224,9 +223,9 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await video_row.click()
         await self.delay(1)
 
-        options_btn = await self.wait_for_element("ytcp-icon-button[id='options-button']")
+        options_btn = await self.wait_for_element_pierce("ytcp-icon-button[id='options-button']")
         if not options_btn:
-            options_btn = await self.wait_for_element("ytcp-icon-button.style-scope.ytcp-video-row")
+            options_btn = await self.wait_for_element_pierce("ytcp-icon-button.style-scope.ytcp-video-row")
             
         if not options_btn:
             buttons = await video_row.select_all("ytcp-icon-button")
@@ -254,9 +253,9 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await self.delay(2)
 
         self.log("Checking confirmation box...")
-        confirm_checkbox = await self.wait_for_element("tp-yt-paper-checkbox#confirm-checkbox")
+        confirm_checkbox = await self.wait_for_element_pierce("tp-yt-paper-checkbox#confirm-checkbox")
         if not confirm_checkbox:
-            confirm_checkbox = await self.wait_for_element("tp-yt-paper-checkbox")
+            confirm_checkbox = await self.wait_for_element_pierce("tp-yt-paper-checkbox")
         if confirm_checkbox:
             await confirm_checkbox.click()
         else:
@@ -265,7 +264,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         await self.delay(1)
 
         self.log("Confirming deletion...")
-        confirm_delete_btn = await self.wait_for_element("ytcp-button#delete-button")
+        confirm_delete_btn = await self.wait_for_element_pierce("ytcp-button#delete-button")
         if not confirm_delete_btn:
             confirm_delete_btn = await self.wait_for_text("XÓA VĨNH VIỄN", timeout=5, log_err=False)
         if not confirm_delete_btn:
