@@ -30,23 +30,11 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
                 current_url = self.page.url or ""
 
             dashboard_loaded = False
-            try:
-                js_check = """
-                (function() {
-                    function hasEl(sel, node = document) {
-                        if (node.querySelector(sel)) return true;
-                        const all = node.querySelectorAll('*');
-                        for (const child of all) {
-                            if (child.shadowRoot && hasEl(sel, child.shadowRoot)) return true;
-                        }
-                        return false;
-                    }
-                    return hasEl('#create-icon') || hasEl('#upload-button') || hasEl('#menu-item-dashboard');
-                })()
-                """
-                dashboard_loaded = await self.page.evaluate(js_check)
-            except Exception:
-                pass
+            if "studio.youtube.com" in current_url:
+                try:
+                    dashboard_loaded = await self.page.evaluate("document.querySelector('ytcp-app') !== null")
+                except Exception:
+                    dashboard_loaded = True
                         
             if dashboard_loaded:
                 is_logged_in = True
