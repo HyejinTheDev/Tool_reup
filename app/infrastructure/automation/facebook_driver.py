@@ -34,14 +34,13 @@ class FacebookDriver(BaseDriver, UploaderGateway):
                 self.log(f"Not logged in. Current URL: {current_url}. Waiting for manual login in the browser (attempt {i+1}/60)...", "WARN")
                 await self.delay(5)
             else:
-                file_input = await self.wait_for_element("input[type='file']", timeout=3, log_err=False)
-                if file_input:
+                if "reels_composer" in current_url or "composer" in current_url:
                     is_logged_in = True
                     self.log("Successfully detected logged-in session!")
                     break
                 else:
-                    self.log("Waiting for Composer to load...")
-                    await self.delay(5)
+                    self.log("Waiting for Composer page to load...")
+                    await self.delay(3)
 
         if not is_logged_in:
             raise TimeoutError("Login timeout: User did not login to Meta Business Suite within 5 minutes.")
