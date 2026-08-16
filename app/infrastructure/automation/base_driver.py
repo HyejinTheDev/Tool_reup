@@ -282,6 +282,96 @@ class BaseDriver:
         self.log(f"Timeout trying to JS click: '{selector}'", "WARN")
         return False
 
+    async def cdp_click(self, selector: str, timeout: float = 30.0) -> bool:
+        """Finds element piercing shadow roots and performs a REAL CDP mouse click (isTrusted: true).
+        
+        Unlike js_click which uses el.click() (synthetic, isTrusted: false),
+        this method uses CDP Input.dispatchMouseEvent which generates trusted
+        mouse events that Polymer Web Components respond to correctly.
+        """
+        from nodriver.cdp import input_ as cdp_input
+        
+        js_code = f"""
+        (function() {{
+            function findElements(selector, startNode = document, results = []) {{
+                const el = startNode.querySelector(selector);
+                if (el) results.push(el);
+                
+                const all = startNode.querySelectorAll('*');
+                for (const node of all) {{
+                    if (node.shadowRoot) {{
+                        findElements(selector, node.shadowRoot, results);
+                    }}
+                }}
+                return results;
+            }}
+            function getStartNode() {{
+                const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                for (let i = dialogs.length - 1; i >= 0; i--) {{
+                    const d = dialogs[i];
+                    if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) {{
+                        return d.shadowRoot || d;
+                    }}
+                }}
+                return document;
+            }}
+            function isVisible(el) {{
+                return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            }}
+            const startNode = getStartNode();
+            const matches = findElements("{selector}", startNode);
+            let el = null;
+            if (matches.length > 0) {{
+                for (let i = matches.length - 1; i >= 0; i--) {{
+                    if (isVisible(matches[i])) {{
+                        el = matches[i];
+                        break;
+                    }}
+                }}
+                if (!el) el = matches[matches.length - 1];
+            }}
+            if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
+                el.scrollIntoView({{block: 'center'}});
+                const rect = el.getBoundingClientRect();
+                return rect.left + ',' + rect.top + ',' + rect.width + ',' + rect.height;
+            }}
+            return '';
+        }})()
+        """
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            try:
+                res = await self.page.evaluate(js_code)
+                if res and isinstance(res, str) and ',' in str(res):
+                    parts = str(res).split(',')
+                    left, top, width, height = float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3])
+                    x = left + width / 2
+                    y = top + height / 2
+                    
+                    # Dispatch real mouse events via CDP (isTrusted: true)
+                    await self.page.send(cdp_input.dispatch_mouse_event(
+                        type_="mousePressed",
+                        x=x, y=y,
+                        button=cdp_input.MouseButton.LEFT,
+                        click_count=1,
+                        pointer_type="mouse"
+                    ))
+                    await asyncio.sleep(0.05)
+                    await self.page.send(cdp_input.dispatch_mouse_event(
+                        type_="mouseReleased",
+                        x=x, y=y,
+                        button=cdp_input.MouseButton.LEFT,
+                        click_count=1,
+                        pointer_type="mouse"
+                    ))
+                    return True
+            except Exception as e:
+                self.log(f"cdp_click error: {e}", "WARN")
+            await asyncio.sleep(0.5)
+        self.log(f"Timeout trying to CDP click: '{selector}'", "WARN")
+        return False
+
+
     async def js_type(self, selector: str, text: str, timeout: float = 30.0) -> bool:
         """Finds an element piercing shadow roots and inputs text in JS, waiting if necessary."""
         safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")

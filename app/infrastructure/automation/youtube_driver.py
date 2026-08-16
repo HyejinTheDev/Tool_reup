@@ -104,9 +104,12 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # Chờ 3 giây để các sự kiện Polymer được liên kết hoàn toàn vào nút tròn
         await self.delay(3)
 
-        # Audience: 'Not made for kids' radio button
-        self.log("Selecting audience option 'Not made for kids'...")
-        kids_clicked = await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]')
+        # Audience: 'Not made for kids' radio button (dùng CDP mouse click thật)
+        self.log("Selecting audience option 'Not made for kids' (CDP click)...")
+        kids_clicked = await self.cdp_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]')
+        if not kids_clicked:
+            self.log("CDP click failed, falling back to JS click...", "WARN")
+            kids_clicked = await self.js_click('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]')
         if not kids_clicked:
             kids_clicked = await self.js_click_text("No, it's not made for kids", timeout=5)
         if not kids_clicked:
@@ -114,22 +117,24 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         await self.delay(2)
 
-        # 5. Navigate through steps (Click Next)
+        # 5. Navigate through steps (Click Next) - dùng CDP click cho nút Next
         self.log("Navigating Details -> Video Elements...")
-        await self.js_click("#next-button", timeout=90)
+        await self.cdp_click("#next-button", timeout=90)
         await self.delay(2)
 
         self.log("Navigating Video Elements -> Checks...")
-        await self.js_click("#next-button", timeout=90)
+        await self.cdp_click("#next-button", timeout=90)
         await self.delay(2)
 
         self.log("Navigating Checks -> Visibility...")
-        await self.js_click("#next-button", timeout=90)
+        await self.cdp_click("#next-button", timeout=90)
         await self.delay(2)
 
-        # 6. Publish / Visibility Step
-        self.log("Setting visibility to Public...")
-        pub_clicked = await self.js_click('tp-yt-paper-radio-button[name="PUBLIC"]')
+        # 6. Publish / Visibility Step (dùng CDP click cho radio button Public)
+        self.log("Setting visibility to Public (CDP click)...")
+        pub_clicked = await self.cdp_click('tp-yt-paper-radio-button[name="PUBLIC"]')
+        if not pub_clicked:
+            pub_clicked = await self.js_click('tp-yt-paper-radio-button[name="PUBLIC"]')
         if not pub_clicked:
             pub_clicked = await self.js_click_text("Public", timeout=5)
         if not pub_clicked:
@@ -151,15 +156,17 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         except Exception:
             pass
 
-        # 8. Click Done / Publish
-        self.log("Clicking Publish/Done button...")
-        done_clicked = await self.js_click("#done-button", timeout=90)
+        # 8. Click Done / Publish (dùng CDP click)
+        self.log("Clicking Publish/Done button (CDP click)...")
+        done_clicked = await self.cdp_click("#done-button", timeout=90)
+        if not done_clicked:
+            done_clicked = await self.js_click("#done-button", timeout=90)
         if not done_clicked:
             done_clicked = await self.js_click_text("Publish", timeout=90)
         if not done_clicked:
             done_clicked = await self.js_click_text("Xuất bản", timeout=90)
         if not done_clicked:
-            await self.js_click("ytcp-button#save-button", timeout=90)
+            await self.cdp_click("ytcp-button#save-button", timeout=90)
 
         self.log("Waiting for publish completion dialog...")
         await self.delay(7)
