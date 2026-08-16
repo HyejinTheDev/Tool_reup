@@ -63,28 +63,41 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             raise TimeoutError("Login timeout: User did not login to YouTube Studio within 5 minutes.")
 
         # 2. Open Upload Dialog
-        self.log("Clicking 'Create' button (CDP click)...")
-        clicked = await self.cdp_click("#create-icon", timeout=5)
-        if not clicked:
-            clicked = await self.js_click("#create-icon", timeout=3)
-            
-        if clicked:
-            await self.delay(1)
-            self.log("Clicking 'Upload videos'...")
-            up_clicked = await self.cdp_click("#upload-button", timeout=5)
-            if not up_clicked:
+        self.log("Opening YouTube Upload Dialog...")
+        current_url = self.page.url
+        if "?d=ud" not in current_url and "&d=ud" not in current_url:
+            upload_url = current_url + ("&d=ud" if "?" in current_url else "?d=ud")
+            self.log(f"Navigating to upload trigger URL: {upload_url}")
+            await self.page.get(upload_url)
+            await self.delay(3)
+
+        # Fallback click trigger if dialog isn't visible yet
+        dialog = await self.wait_for_element_pierce("ytcp-uploads-dialog", timeout=3, log_err=False)
+        if not dialog:
+            self.log("Dialog not popped automatically by URL, attempting deep ShadowRoot button clicks...")
+            js_trigger = """
+            (function() {
+                const createBtn = document.querySelector('#create-icon');
+                if (createBtn) {
+                    const inner = createBtn.shadowRoot ? createBtn.shadowRoot.querySelector('button, #button') : createBtn;
+                    if (inner) inner.click();
+                    return true;
+                }
+                const uploadBtn = document.querySelector('#upload-icon') || document.querySelector('#upload-button');
+                if (uploadBtn) {
+                    const inner = uploadBtn.shadowRoot ? uploadBtn.shadowRoot.querySelector('button, #button') : uploadBtn;
+                    if (inner) inner.click();
+                    return true;
+                }
+                return false;
+            })()
+            """
+            try:
+                await self.page.evaluate(js_trigger)
+                await self.delay(2)
                 await self.js_click("#upload-button", timeout=3)
-        else:
-            self.log("Header 'Create' button not found. Checking for center 'Upload videos' button...")
-            center_clicked = await self.cdp_click("#upload-button", timeout=5)
-            if not center_clicked:
-                center_clicked = await self.js_click("#upload-button", timeout=3)
-            if center_clicked:
-                self.log("Successfully opened upload dialog using center button!")
-            else:
-                raise Exception("Could not find any button to open the upload dialog (tried header 'Create' and center 'Upload videos').")
-        
-        await self.delay(2)
+            except Exception as e:
+                self.log(f"Warning on JS trigger fallback: {e}", "WARN")
 
         # 3. Select File
         self.log(f"Uploading file: {video_path}")
