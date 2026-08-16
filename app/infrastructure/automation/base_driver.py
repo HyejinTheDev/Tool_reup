@@ -502,9 +502,9 @@ class BaseDriver:
                          tagName === 'tp-yt-paper-radio-button') && 
                         child.innerText) {{
                         const cleanText = child.innerText.trim().toLowerCase();
-                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {
+                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {{
                             results.push(child);
-                        }
+                        }}
                     }}
                     if (child.shadowRoot) {{
                         collectMatches(txt, child.shadowRoot, results);
@@ -583,9 +583,9 @@ class BaseDriver:
                          tagName === 'span') && 
                         child.innerText) {{
                         const cleanText = child.innerText.trim().toLowerCase();
-                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {
+                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {{
                             results.push(child);
-                        }
+                        }}
                     }}
                     if (child.shadowRoot) {{
                         collectMatches(txt, child.shadowRoot, results);
