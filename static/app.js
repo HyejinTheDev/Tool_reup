@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSelected = selectedPlatforms.includes(acc.id);
             
             return `
-                <div class="channel-chip-card ${isSelected ? 'selected' : ''}" data-id="${acc.id}" title="${acc.name} (${acc.platform.toUpperCase()})">
+                <div class="channel-chip-card ${isSelected ? 'selected' : ''} ${acc.platform}" data-id="${acc.id}" title="${acc.name} (${acc.platform.toUpperCase()})">
                     <div class="channel-chip-icon ${acc.platform}">
                         <i class="fa-brands ${iconMap[acc.platform]}"></i>
                     </div>
@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="channel-chip-platform">${platformLabel[acc.platform] || acc.platform}</span>
                     </div>
                     <div class="channel-chip-check">
-                        <i class="fa-solid fa-circle-check"></i>
+                        <i class="fa-solid fa-check"></i>
                     </div>
                 </div>
             `;
