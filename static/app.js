@@ -115,8 +115,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/accounts');
             globalAccounts = await res.json();
+            if (selectedPlatforms.length === 0 && globalAccounts.length > 0) {
+                selectedPlatforms = globalAccounts.map(acc => acc.id);
+            }
             renderAccountsList();
             renderPublishPlatforms();
+            updateYoutubeFieldsVisibility();
             updateStats();
         } catch (e) {
             console.error('Error fetching accounts:', e);
@@ -299,6 +303,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateMockupProfileLabels();
             });
         });
+
+        // Bind Select All / Deselect All buttons
+        const btnSelectAll = document.getElementById('btn-select-all-channels');
+        if (btnSelectAll && !btnSelectAll._bound) {
+            btnSelectAll._bound = true;
+            btnSelectAll.addEventListener('click', () => {
+                selectedPlatforms = globalAccounts.map(acc => acc.id);
+                renderPublishPlatforms();
+                updateYoutubeFieldsVisibility();
+                updateMockupProfileLabels();
+            });
+        }
+
+        const btnDeselectAll = document.getElementById('btn-deselect-all-channels');
+        if (btnDeselectAll && !btnDeselectAll._bound) {
+            btnDeselectAll._bound = true;
+            btnDeselectAll.addEventListener('click', () => {
+                selectedPlatforms = [];
+                renderPublishPlatforms();
+                updateYoutubeFieldsVisibility();
+                updateMockupProfileLabels();
+            });
+        }
     }
 
     function updateYoutubeFieldsVisibility() {
