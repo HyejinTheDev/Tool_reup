@@ -86,6 +86,14 @@ class BaseDriver:
             # nodriver starts with a default main tab
             self.page = self.browser.main_tab
             
+            # Close any other restored/background tabs to prevent "ghost tabs"
+            try:
+                for tab in list(self.browser.tabs):
+                    if tab != self.page:
+                        await tab.close()
+            except Exception as e:
+                self.log(f"Warning: Failed to close background tabs: {e}", "WARN")
+                
             # Enable DOM domain and fetch document once at startup
             import nodriver.cdp.dom as dom
             await self.page.send(dom.enable())
@@ -261,14 +269,14 @@ class BaseDriver:
                                           el.tagName.toLowerCase().includes('toggle') ||
                                           el.getAttribute('role') === 'radio' ||
                                           el.getAttribute('role') === 'checkbox';
-                el.click();
                 if (isRadioOrCheckbox) {{
                     const isChecked = el.checked || el.getAttribute('aria-checked') === 'true';
-                    if (!isChecked) {{
-                        return false;
+                    if (isChecked) {{
+                        return true;
                     }}
                 }}
-                return true;
+                el.click();
+                return !isRadioOrCheckbox;
             }}
             return false;
         }})()
@@ -404,14 +412,14 @@ class BaseDriver:
                                           el.tagName.toLowerCase().includes('toggle') ||
                                           el.getAttribute('role') === 'radio' ||
                                           el.getAttribute('role') === 'checkbox';
-                el.click();
                 if (isRadioOrCheckbox) {{
                     const isChecked = el.checked || el.getAttribute('aria-checked') === 'true';
-                    if (!isChecked) {{
-                        return false;
+                    if (isChecked) {{
+                        return true;
                     }}
                 }}
-                return true;
+                el.click();
+                return !isRadioOrCheckbox;
             }}
             return false;
         }})()
