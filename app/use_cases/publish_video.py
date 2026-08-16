@@ -112,8 +112,13 @@ class PublishVideoUseCase:
             except RuntimeError:
                 pass
 
-        # 1. Launch ONE single Chrome browser instance
-        master_driver = BaseDriver("shared_master", "profile_shared_all_platforms", chrome_path, headless, master_log_cb)
+        # Resolve target profile from the selected accounts
+        accounts = self.repository.get_accounts()
+        target_accs = [acc for acc in accounts if acc.id in account_ids]
+        shared_profile = target_accs[0].profile_name if target_accs else "profile_shared_all_platforms"
+
+        # 1. Launch ONE single Chrome browser instance using the target account's profile
+        master_driver = BaseDriver("shared_master", shared_profile, chrome_path, headless, master_log_cb)
         await master_driver.start_browser()
         shared_browser = master_driver.browser
         

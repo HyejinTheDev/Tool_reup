@@ -25,13 +25,11 @@ class OpenBrowserUseCase:
             
         import nodriver as uc
         
-        # Determine profile directory - use shared profile for all default accounts
+        # Determine profile directory - use the account's Chrome profile
         project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         profiles_dir = os.path.join(project_dir, "chrome_profiles")
         
-        if "default" in account.profile_name or "beta" in account.profile_name:
-            profile_path = os.path.join(profiles_dir, "profile_shared_all_platforms")
-        elif os.path.isabs(account.profile_name) or "\\" in account.profile_name or "/" in account.profile_name:
+        if os.path.isabs(account.profile_name) or "\\" in account.profile_name or "/" in account.profile_name:
             profile_path = os.path.abspath(account.profile_name)
         else:
             profile_path = os.path.join(profiles_dir, account.profile_name)
