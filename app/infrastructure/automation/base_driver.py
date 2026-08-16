@@ -483,6 +483,84 @@ class BaseDriver:
         self.log(f"Timeout trying to JS type: '{selector}'", "WARN")
         return False
 
+    async def cdp_click_text(self, text: str, timeout: float = 30.0) -> bool:
+        """Finds an element containing specific text piercing shadow roots and clicks it via CDP."""
+        from nodriver.cdp import input_ as cdp_input
+        safe_txt = json.dumps(text)
+        js_find = f"""
+        (function() {{
+            function collectMatches(txt, node = document, results = []) {{
+                const all = node.querySelectorAll('*');
+                for (const child of all) {{
+                    const tagName = child.tagName.toLowerCase();
+                    if ((tagName === 'button' || 
+                         tagName === 'div' || 
+                         tagName === 'span' || 
+                         tagName === 'a' || 
+                         tagName === 'ytcp-button' ||
+                         tagName === 'tp-yt-paper-button') && 
+                        child.innerText && child.innerText.trim().toLowerCase() === txt.toLowerCase()) {{
+                        results.push(child);
+                    }}
+                    if (child.shadowRoot) {{
+                        collectMatches(txt, child.shadowRoot, results);
+                    }}
+                }}
+                return results;
+            }}
+            function isVisible(el) {{
+                return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            }}
+            const matches = collectMatches({safe_txt}, document);
+            let el = null;
+            if (matches.length > 0) {{
+                for (let i = matches.length - 1; i >= 0; i--) {{
+                    if (isVisible(matches[i])) {{
+                        el = matches[i];
+                        break;
+                    }}
+                }}
+                if (!el) el = matches[matches.length - 1];
+            }}
+            if (el && isVisible(el)) {{
+                el.scrollIntoView({{block: 'center'}});
+                const rect = el.getBoundingClientRect();
+                window.__cdp_x = rect.left + rect.width / 2;
+                window.__cdp_y = rect.top + rect.height / 2;
+                window.__cdp_tag = el.tagName;
+                return true;
+            }}
+            window.__cdp_x = 0;
+            window.__cdp_y = 0;
+            window.__cdp_tag = '';
+            return false;
+        }})()
+        """
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            try:
+                found = await self.page.evaluate(js_find)
+                if found:
+                    x = await self.page.evaluate("window.__cdp_x")
+                    y = await self.page.evaluate("window.__cdp_y")
+                    if x and y:
+                        x_val = float(x)
+                        y_val = float(y)
+                        await self.page.send(cdp_input.dispatch_mouse_event(
+                            type_="mousePressed", x=x_val, y=y_val,
+                            button=cdp_input.MouseButton.LEFT, click_count=1, pointer_type="mouse"
+                        ))
+                        await asyncio.sleep(0.05)
+                        await self.page.send(cdp_input.dispatch_mouse_event(
+                            type_="mouseReleased", x=x_val, y=y_val,
+                            button=cdp_input.MouseButton.LEFT, click_count=1, pointer_type="mouse"
+                        ))
+                        return True
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+        return False
+
     async def js_click_text(self, text: str, timeout: float = 30.0) -> bool:
         """Finds an element containing specific text (piercing shadow roots) and clicks it."""
         safe_txt = json.dumps(text)
