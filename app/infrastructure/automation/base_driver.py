@@ -264,19 +264,8 @@ class BaseDriver:
                 if (!el) el = matches[matches.length - 1];
             }}
             if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
-                const isRadioOrCheckbox = el.tagName.toLowerCase().includes('radio') || 
-                                          el.tagName.toLowerCase().includes('checkbox') || 
-                                          el.tagName.toLowerCase().includes('toggle') ||
-                                          el.getAttribute('role') === 'radio' ||
-                                          el.getAttribute('role') === 'checkbox';
-                if (isRadioOrCheckbox) {{
-                    const isChecked = el.checked || el.getAttribute('aria-checked') === 'true';
-                    if (isChecked) {{
-                        return true;
-                    }}
-                }}
                 el.click();
-                return !isRadioOrCheckbox;
+                return true;
             }}
             return false;
         }})()
@@ -407,19 +396,8 @@ class BaseDriver:
                 if (!el) el = matches[matches.length - 1];
             }}
             if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
-                const isRadioOrCheckbox = el.tagName.toLowerCase().includes('radio') || 
-                                          el.tagName.toLowerCase().includes('checkbox') || 
-                                          el.tagName.toLowerCase().includes('toggle') ||
-                                          el.getAttribute('role') === 'radio' ||
-                                          el.getAttribute('role') === 'checkbox';
-                if (isRadioOrCheckbox) {{
-                    const isChecked = el.checked || el.getAttribute('aria-checked') === 'true';
-                    if (isChecked) {{
-                        return true;
-                    }}
-                }}
                 el.click();
-                return !isRadioOrCheckbox;
+                return true;
             }}
             return false;
         }})()
