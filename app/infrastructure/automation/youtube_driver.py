@@ -113,15 +113,15 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 5. Navigate through steps (Click Next)
         self.log("Navigating Details -> Video Elements...")
-        await self.js_click("#next-button")
+        await self.js_click("#next-button", timeout=90)
         await self.delay(2)
 
         self.log("Navigating Video Elements -> Checks...")
-        await self.js_click("#next-button")
+        await self.js_click("#next-button", timeout=90)
         await self.delay(2)
 
         self.log("Navigating Checks -> Visibility...")
-        await self.js_click("#next-button")
+        await self.js_click("#next-button", timeout=90)
         await self.delay(2)
 
         # 6. Publish / Visibility Step
@@ -150,13 +150,13 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 8. Click Done / Publish
         self.log("Clicking Publish/Done button...")
-        done_clicked = await self.js_click("#done-button")
+        done_clicked = await self.js_click("#done-button", timeout=90)
         if not done_clicked:
-            done_clicked = await self.js_click_text("Publish", timeout=5)
+            done_clicked = await self.js_click_text("Publish", timeout=90)
         if not done_clicked:
-            done_clicked = await self.js_click_text("Xuất bản", timeout=5)
+            done_clicked = await self.js_click_text("Xuất bản", timeout=90)
         if not done_clicked:
-            await self.js_click("ytcp-button#save-button")
+            await self.js_click("ytcp-button#save-button", timeout=90)
 
         self.log("Waiting for publish completion dialog...")
         await self.delay(7)

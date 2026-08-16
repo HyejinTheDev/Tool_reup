@@ -230,10 +230,21 @@ class BaseDriver:
                 }}
                 return results;
             }}
+            function getStartNode() {{
+                const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                for (let i = dialogs.length - 1; i >= 0; i--) {{
+                    const d = dialogs[i];
+                    if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) {{
+                        return d.shadowRoot || d;
+                    }}
+                }}
+                return document;
+            }}
             function isVisible(el) {{
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
-            const matches = findElements("{selector}");
+            const startNode = getStartNode();
+            const matches = findElements("{selector}", startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
@@ -301,10 +312,21 @@ class BaseDriver:
                 }}
                 return results;
             }}
+            function getStartNode() {{
+                const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                for (let i = dialogs.length - 1; i >= 0; i--) {{
+                    const d = dialogs[i];
+                    if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) {{
+                        return d.shadowRoot || d;
+                    }}
+                }}
+                return document;
+            }}
             function isVisible(el) {{
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
-            const matches = findElements("{selector}");
+            const startNode = getStartNode();
+            const matches = findElements("{selector}", startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
@@ -361,10 +383,21 @@ class BaseDriver:
                 }}
                 return results;
             }}
+            function getStartNode() {{
+                const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                for (let i = dialogs.length - 1; i >= 0; i--) {{
+                    const d = dialogs[i];
+                    if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) {{
+                        return d.shadowRoot || d;
+                    }}
+                }}
+                return document;
+            }}
             function isVisible(el) {{
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
-            const matches = collectMatches("{safe_text}");
+            const startNode = getStartNode();
+            const matches = collectMatches("{safe_text}", startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
