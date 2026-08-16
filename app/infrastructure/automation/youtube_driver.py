@@ -88,7 +88,7 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
         # Set file input
         await file_input.send_file(os.path.abspath(video_path))
         self.log("Video file selected. Waiting for upload form to initialize...")
-        await self.delay(5)
+        await self.delay(8)
 
         # 4. Fill Metadata (Details Step)
         self.log("Filling title and description...")
@@ -100,6 +100,9 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # Description input
         await self.js_type("#description-textarea #textbox", description)
+
+        # Chờ 3 giây để các sự kiện Polymer được liên kết hoàn toàn vào nút tròn
+        await self.delay(3)
 
         # Audience: 'Not made for kids' radio button
         self.log("Selecting audience option 'Not made for kids'...")
