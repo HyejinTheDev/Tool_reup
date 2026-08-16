@@ -162,10 +162,14 @@ class FacebookDriver(BaseDriver, UploaderGateway):
             try:
                 js_pub = """
                 (function() {
-                    const btns = document.querySelectorAll('div[role="button"], button');
-                    for (const b of btns) {
-                        const t = b.textContent.trim();
-                        if (t === 'Đăng' || t === 'Publish') { b.click(); return 'clicked:' + t; }
+                    const elements = document.querySelectorAll('span, div, button');
+                    for (const el of elements) {
+                        const text = el.textContent.trim();
+                        if (text === 'Đăng' || text === 'Publish') {
+                            const clickTarget = el.closest('[role="button"]') || el.closest('button') || el;
+                            clickTarget.click();
+                            return 'clicked:' + text;
+                        }
                     }
                     return 'not_found';
                 })()
