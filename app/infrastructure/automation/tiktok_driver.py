@@ -40,9 +40,23 @@ class TiktokDriver(BaseDriver, UploaderGateway):
         if not is_logged_in:
             raise TimeoutError("Login timeout: User did not login to TikTok Studio within 5 minutes.")
 
+        # Check for unsaved draft modal prompt
+        try:
+            discard_btn = await self.js_click_text("Discard", timeout=3)
+            if not discard_btn:
+                discard_btn = await self.js_click_text("Bỏ qua", timeout=3)
+            if discard_btn:
+                self.log("Dismissed unsaved draft modal by clicking 'Discard'.")
+                await self.delay(2)
+        except Exception:
+            pass
+
         # 2. Select File
         self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element("input[type='file']")
+        file_input = await self.wait_for_element_pierce("input[type='file']", timeout=15)
+        if not file_input:
+            file_input = await self.wait_for_element("input[type='file']", timeout=5)
+            
         if not file_input:
             raise Exception("Could not find file input element on TikTok upload page.")
 
@@ -52,14 +66,12 @@ class TiktokDriver(BaseDriver, UploaderGateway):
 
         # 3. Fill Caption (using description)
         self.log("Entering caption...")
-        caption_box = await self.wait_for_element("div[contenteditable='true']")
+        caption_box = await self.wait_for_element_pierce("div[contenteditable='true']", timeout=10)
         if not caption_box:
-            caption_box = await self.wait_for_element(".public-DraftEditor-content")
+            caption_box = await self.wait_for_element_pierce(".public-DraftEditor-content", timeout=5)
             
         if caption_box:
-            await caption_box.click()
-            await self.delay(1)
-            await caption_box.send_keys(description)
+            await self.js_type("div[contenteditable='true']", description, timeout=5)
             self.log(f"Caption set: {description}")
         else:
             self.log("Warning: Caption input not found, skipping caption edit", "WARN")
@@ -69,18 +81,17 @@ class TiktokDriver(BaseDriver, UploaderGateway):
         await self.delay(10)
 
         # 5. Click Post Button
-        self.log("Locating Post button...")
-        post_btn = await self.wait_for_text("Đăng", timeout=5, log_err=False)
-        if not post_btn:
-            post_btn = await self.wait_for_text("Post", timeout=5, log_err=False)
-        if not post_btn:
-            post_btn = await self.wait_for_element("button.btn-post", timeout=5, log_err=False)
+        self.log("Locating Post button (CDP click)...")
+        post_clicked = await self.cdp_click("button.btn-post", timeout=5)
+        if not post_clicked:
+            post_clicked = await self.js_click_text("Đăng", timeout=5)
+        if not post_clicked:
+            post_clicked = await self.js_click_text("Post", timeout=5)
             
-        if not post_btn:
-            raise Exception("Could not locate the 'Post'/'Đăng' button.")
-
-        self.log("Clicking Post button...")
-        await post_btn.click()
+        if not post_clicked:
+            self.log("Warning: Could not click Post button automatically.", "WARN")
+        else:
+            self.log("Post button clicked successfully!")
         
         self.log("Waiting for post to complete...")
         await self.delay(10)

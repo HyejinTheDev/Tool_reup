@@ -63,15 +63,22 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             raise TimeoutError("Login timeout: User did not login to YouTube Studio within 5 minutes.")
 
         # 2. Open Upload Dialog
-        self.log("Clicking 'Create' button...")
-        clicked = await self.js_click("#create-icon", timeout=5)
+        self.log("Clicking 'Create' button (CDP click)...")
+        clicked = await self.cdp_click("#create-icon", timeout=5)
+        if not clicked:
+            clicked = await self.js_click("#create-icon", timeout=3)
+            
         if clicked:
             await self.delay(1)
             self.log("Clicking 'Upload videos'...")
-            await self.js_click("#upload-button", timeout=5)
+            up_clicked = await self.cdp_click("#upload-button", timeout=5)
+            if not up_clicked:
+                await self.js_click("#upload-button", timeout=3)
         else:
-            self.log("Header 'Create' button not found. Checking for center 'Upload videos' button (empty channel dashboard)...")
-            center_clicked = await self.js_click("#upload-button", timeout=5)
+            self.log("Header 'Create' button not found. Checking for center 'Upload videos' button...")
+            center_clicked = await self.cdp_click("#upload-button", timeout=5)
+            if not center_clicked:
+                center_clicked = await self.js_click("#upload-button", timeout=3)
             if center_clicked:
                 self.log("Successfully opened upload dialog using center button!")
             else:

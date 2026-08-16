@@ -48,7 +48,18 @@ class FacebookDriver(BaseDriver, UploaderGateway):
 
         # 2. Select File
         self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element("input[type='file']")
+        file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
+        if not file_input:
+            # Try clicking 'Thêm video' / 'Add video' button to reveal file input
+            self.log("Clicking 'Thêm video' / 'Add video' button (CDP click)...")
+            await self.cdp_click_text("Thêm video", timeout=3)
+            await self.cdp_click_text("Add video", timeout=3)
+            await self.delay(2)
+            file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
+            
+        if not file_input:
+            file_input = await self.wait_for_element("input[type='file']", timeout=5)
+            
         if not file_input:
             raise Exception("Could not find file input element on Facebook Composer page.")
 
@@ -58,51 +69,30 @@ class FacebookDriver(BaseDriver, UploaderGateway):
 
         # 3. Fill Description/Caption (using description)
         self.log("Entering caption...")
-        caption_box = await self.wait_for_element("div[contenteditable='true']")
-        if not caption_box:
-            caption_box = await self.wait_for_element("textarea")
-            
-        if caption_box:
-            await caption_box.click()
-            await self.delay(1)
-            await caption_box.send_keys(description)
-            self.log(f"Caption set: {description}")
-        else:
-            self.log("Warning: Caption input not found, skipping caption edit", "WARN")
+        await self.js_type("div[contenteditable='true']", description, timeout=5)
+        await self.js_type("textarea", description, timeout=5)
+        self.log(f"Caption set: {description}")
 
         # 4. Navigate Steps (Next -> Next -> Share/Publish)
-        # Regular Page Video Composer may only need one "Publish" button click or "Next" -> "Publish"
-        # We try up to 3 times to click "Tiếp"/"Next"/"Chia sẻ"/"Share"/"Đăng"/"Publish"
         for step in range(3):
             self.log(f"Attempting step navigation (Step {step+1}/3)...")
-            
-            # Look for publish or next buttons
-            next_btn = await self.wait_for_text("Tiếp", timeout=3, log_err=False)
-            if not next_btn:
-                next_btn = await self.wait_for_text("Next", timeout=3, log_err=False)
-            if not next_btn:
-                next_btn = await self.wait_for_text("Chia sẻ", timeout=3, log_err=False)
-            if not next_btn:
-                next_btn = await self.wait_for_text("Share", timeout=3, log_err=False)
-            if not next_btn:
-                next_btn = await self.wait_for_text("Đăng", timeout=3, log_err=False)
-            if not next_btn:
-                next_btn = await self.wait_for_text("Publish", timeout=3, log_err=False)
+            clicked = await self.cdp_click_text("Tiếp", timeout=3)
+            if not clicked:
+                clicked = await self.cdp_click_text("Next", timeout=3)
+            if not clicked:
+                clicked = await self.cdp_click_text("Chia sẻ", timeout=3)
+            if not clicked:
+                clicked = await self.cdp_click_text("Share", timeout=3)
+            if not clicked:
+                clicked = await self.cdp_click_text("Đăng", timeout=3)
+            if not clicked:
+                clicked = await self.cdp_click_text("Publish", timeout=3)
                 
-            if not next_btn:
-                # Search inside buttons
-                buttons = await self.page.select_all("button")
-                for btn in buttons:
-                    if btn.text and any(x in btn.text for x in ["Chia sẻ", "Share", "Publish", "Đăng", "Next", "Tiếp"]):
-                        next_btn = btn
-                        break
-                        
-            if next_btn:
-                self.log(f"Found navigation button: '{next_btn.text or 'Button'}'. Clicking it...")
-                await next_btn.click()
+            if clicked:
+                self.log(f"Navigation button clicked (Step {step+1}). Waiting...")
                 await self.delay(4)
             else:
-                self.log("No further navigation or publish button found. It might have finished.", "INFO")
+                self.log("No further navigation or publish button found.", "INFO")
                 break
 
         self.log("Waiting for post to complete...")

@@ -123,13 +123,7 @@ class BaseDriver:
     async def close_browser(self):
         """Close browser safely."""
         if self.is_shared_browser:
-            self.log("Closing tab in shared browser window...")
-            if self.page:
-                try:
-                    await self.page.close()
-                except Exception:
-                    pass
-                self.page = None
+            self.log("Tác vụ hoàn thành trên thẻ Tab. Giữ nguyên Tab mở để theo dõi...")
             return
 
         if self.browser:
