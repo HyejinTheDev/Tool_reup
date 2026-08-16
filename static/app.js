@@ -261,48 +261,77 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const iconMap = {
+            youtube: 'fa-youtube',
+            tiktok: 'fa-tiktok',
+            facebook: 'fa-facebook-f'
+        };
+        const platformLabel = {
+            youtube: 'YouTube Shorts',
+            tiktok: 'TikTok Studio',
+            facebook: 'Facebook Reels'
+        };
+
         composerChannelAvatars.innerHTML = globalAccounts.map(acc => {
-            const iconMap = {
-                youtube: 'fa-youtube',
-                tiktok: 'fa-tiktok',
-                facebook: 'fa-facebook-f'
-            };
-            
-            // Get first character of account name as placeholder
-            const initial = acc.name ? acc.name.charAt(0) : 'A';
             const isSelected = selectedPlatforms.includes(acc.id);
             
             return `
-                <div class="channel-avatar-badge ${isSelected ? 'selected' : ''}" data-id="${acc.id}" title="${acc.name} (${acc.platform.toUpperCase()})">
-                    <div class="channel-avatar-text-placeholder">${initial}</div>
-                    <div class="platform-mini-badge ${acc.platform}">
+                <div class="channel-chip-card ${isSelected ? 'selected' : ''}" data-id="${acc.id}" title="${acc.name} (${acc.platform.toUpperCase()})">
+                    <div class="channel-chip-icon ${acc.platform}">
                         <i class="fa-brands ${iconMap[acc.platform]}"></i>
+                    </div>
+                    <div class="channel-chip-info">
+                        <span class="channel-chip-name">${acc.name}</span>
+                        <span class="channel-chip-platform">${platformLabel[acc.platform] || acc.platform}</span>
+                    </div>
+                    <div class="channel-chip-check">
+                        <i class="fa-solid fa-circle-check"></i>
                     </div>
                 </div>
             `;
         }).join('');
 
-        // Bind avatar click triggers
-        document.querySelectorAll('.channel-avatar-badge').forEach(badge => {
-            badge.addEventListener('click', () => {
-                const accId = badge.getAttribute('data-id');
+        // Bind chip click triggers
+        document.querySelectorAll('.channel-chip-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const accId = card.getAttribute('data-id');
                 const index = selectedPlatforms.indexOf(accId);
                 
                 if (index > -1) {
                     selectedPlatforms.splice(index, 1);
-                    badge.classList.remove('selected');
+                    card.classList.remove('selected');
                 } else {
                     selectedPlatforms.push(accId);
-                    badge.classList.add('selected');
+                    card.classList.add('selected');
                 }
                 
-                // Toggle YouTube specific fields card
+                // Toggle YouTube / Facebook specific fields
                 updateYoutubeFieldsVisibility();
                 
-                // Update live mockup labels based on the first selected account if any
+                // Update live mockup labels based on selected account
                 updateMockupProfileLabels();
             });
         });
+
+        // Bind "Chọn 3 nền tảng chính (YT + TikTok + FB)" button
+        const btnSelectMainThree = document.getElementById('btn-select-main-three');
+        if (btnSelectMainThree && !btnSelectMainThree._bound) {
+            btnSelectMainThree._bound = true;
+            btnSelectMainThree.addEventListener('click', () => {
+                const mainYt = globalAccounts.find(a => a.platform === 'youtube');
+                const mainTiktok = globalAccounts.find(a => a.platform === 'tiktok');
+                const mainFb = globalAccounts.find(a => a.platform === 'facebook');
+                
+                selectedPlatforms = [];
+                if (mainYt) selectedPlatforms.push(mainYt.id);
+                if (mainTiktok) selectedPlatforms.push(mainTiktok.id);
+                if (mainFb) selectedPlatforms.push(mainFb.id);
+                
+                renderPublishPlatforms();
+                updateYoutubeFieldsVisibility();
+                updateMockupProfileLabels();
+            });
+        }
 
         // Bind Select All / Deselect All buttons
         const btnSelectAll = document.getElementById('btn-select-all-channels');

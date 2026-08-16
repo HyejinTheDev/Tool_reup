@@ -164,11 +164,14 @@
                             <form id="form-publish-video" class="publish-form">
                                 <!-- Channel Avatar Selector Row -->
                                 <div class="form-section">
-                                    <div class="composer-channel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <label class="form-section-label" style="margin-bottom: 0;">Đăng lên tài khoản</label>
-                                        <div class="composer-channel-actions" style="font-size: 12px;">
-                                            <button type="button" id="btn-select-all-channels" style="background:none; border:none; color: var(--primary); cursor: pointer; margin-right: 15px; font-weight: 500; font-family: inherit; font-size: 13px; transition: opacity 0.2s;">Chọn tất cả</button>
-                                            <button type="button" id="btn-deselect-all-channels" style="background:none; border:none; color: var(--text-secondary); cursor: pointer; font-weight: 500; font-family: inherit; font-size: 13px; transition: opacity 0.2s;">Bỏ chọn tất cả</button>
+                                    <div class="composer-channel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                        <label class="form-section-label" style="margin-bottom: 0;">Đăng lên các kênh đã chọn</label>
+                                        <div class="composer-channel-actions" style="display: flex; gap: 10px; align-items: center;">
+                                            <button type="button" id="btn-select-main-three" class="btn btn-sm btn-outline" style="font-size: 12px; padding: 4px 10px; border-color: var(--primary); color: #dfb3ff;">
+                                                <i class="fa-solid fa-bolt" style="color: #ffd700; margin-right: 4px;"></i> Chọn 3 nền tảng chính (YT + TikTok + FB)
+                                            </button>
+                                            <button type="button" id="btn-select-all-channels" style="background:none; border:none; color: var(--primary); cursor: pointer; font-weight: 500; font-family: inherit; font-size: 13px;">Chọn tất cả</button>
+                                            <button type="button" id="btn-deselect-all-channels" style="background:none; border:none; color: var(--text-muted); cursor: pointer; font-weight: 500; font-family: inherit; font-size: 13px;">Bỏ chọn</button>
                                         </div>
                                     </div>
                                     <div class="composer-channel-row" id="composer-channel-avatars">
