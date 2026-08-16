@@ -1,8 +1,10 @@
 import asyncio
+import os
 from datetime import datetime
 from typing import List, Callable, Tuple, Dict, Any
 from app.adapters.repositories.base_repository import BaseRepository
 from app.domain.video import Video
+from app.infrastructure.automation.base_driver import BaseDriver
 from app.infrastructure.automation.youtube_driver import YoutubeDriver
 from app.infrastructure.automation.tiktok_driver import TiktokDriver
 from app.infrastructure.automation.facebook_driver import FacebookDriver
@@ -17,7 +19,9 @@ class PublishVideoUseCase:
         account_id: str, 
         chrome_path: str, 
         headless: bool, 
-        send_sse_log_func: Callable[[str, str], None]
+        send_sse_log_func: Callable[[str, str], None],
+        shared_browser: Any,
+        page: Any
     ) -> Tuple[str, Dict[str, Any]]:
         accounts = self.repository.get_accounts()
         account = next((acc for acc in accounts if acc.id == account_id), None)
@@ -33,7 +37,7 @@ class PublishVideoUseCase:
         platform = account.platform
         profile_name = account.profile_name
         
-        await send_sse_log_func(f"Đang mở trình duyệt đăng song song lên {platform.upper()} (Tài khoản: {account.name})...", "INFO")
+        await send_sse_log_func(f"Đang tự động hóa trên thẻ Tab {platform.upper()} (Tài khoản: {account.name})...", "INFO")
         
         def log_cb(msg):
             try:
@@ -44,11 +48,11 @@ class PublishVideoUseCase:
 
         driver = None
         if platform == "youtube":
-            driver = YoutubeDriver(account_id, profile_name, chrome_path, headless, log_cb)
+            driver = YoutubeDriver(account_id, profile_name, chrome_path, headless, log_cb, browser=shared_browser, page=page)
         elif platform == "tiktok":
-            driver = TiktokDriver(account_id, profile_name, chrome_path, headless, log_cb)
+            driver = TiktokDriver(account_id, profile_name, chrome_path, headless, log_cb, browser=shared_browser, page=page)
         elif platform == "facebook":
-            driver = FacebookDriver(account_id, profile_name, chrome_path, headless, log_cb)
+            driver = FacebookDriver(account_id, profile_name, chrome_path, headless, log_cb, browser=shared_browser, page=page)
             
         if not driver:
             await send_sse_log_func(f"Nền tảng {platform} chưa được hỗ trợ uploader.", "ERROR")
@@ -99,30 +103,55 @@ class PublishVideoUseCase:
         video.results = {}
         self.repository.save_videos(videos)
         
-        await send_sse_log_func(f"Bắt đầu tác vụ đăng video '{video.title}' ĐỒNG THỜI lên {len(account_ids)} tài khoản...", "INFO")
+        await send_sse_log_func(f"Khởi chạy 1 CỬA SỔ CHROME DUY NHẤT để đăng video '{video.title}' cho {len(account_ids)} tài khoản...", "INFO")
         
-        # Launch all uploads in parallel concurrently using asyncio.gather
-        tasks = [
-            self._publish_single_account(video, acc_id, chrome_path, headless, send_sse_log_func)
-            for acc_id in account_ids
-        ]
+        def master_log_cb(msg):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(send_sse_log_func(msg, "INFO"))
+            except RuntimeError:
+                pass
+
+        # 1. Launch ONE single Chrome browser instance
+        master_driver = BaseDriver("shared_master", "profile_shared_all_platforms", chrome_path, headless, master_log_cb)
+        await master_driver.start_browser()
+        shared_browser = master_driver.browser
         
-        account_results = await asyncio.gather(*tasks)
-        
-        # Consolidate results into database
-        videos = self.repository.get_videos()
-        for v in videos:
-            if v.id == video_id:
-                for acc_id, res in account_results:
-                    v.results[acc_id] = res
-                
-                results = v.results
-                if len(results) == len(account_ids) and all(r.get("success", False) for r in results.values()):
-                    v.status = "completed"
-                elif any(r.get("success", False) for r in results.values()):
-                    v.status = "partial"
+        try:
+            # 2. Create a Tab for each account
+            tasks = []
+            for i, acc_id in enumerate(account_ids):
+                if i == 0:
+                    page = shared_browser.main_tab
                 else:
-                    v.status = "failed"
-                break
-        self.repository.save_videos(videos)
-        await send_sse_log_func("Hoàn thành tác vụ đăng video song song đa nền tảng.", "INFO")
+                    page = await shared_browser.get("about:blank", new_tab=True)
+                    
+                tasks.append(
+                    self._publish_single_account(
+                        video, acc_id, chrome_path, headless, send_sse_log_func, shared_browser, page
+                    )
+                )
+                
+            # 3. Run all tabs in parallel concurrently
+            account_results = await asyncio.gather(*tasks)
+            
+            # Consolidate results into database
+            videos = self.repository.get_videos()
+            for v in videos:
+                if v.id == video_id:
+                    for acc_id, res in account_results:
+                        v.results[acc_id] = res
+                    
+                    results = v.results
+                    if len(results) == len(account_ids) and all(r.get("success", False) for r in results.values()):
+                        v.status = "completed"
+                    elif any(r.get("success", False) for r in results.values()):
+                        v.status = "partial"
+                    else:
+                        v.status = "failed"
+                    break
+            self.repository.save_videos(videos)
+            await send_sse_log_func("Hoàn thành tác vụ đăng video song song đa nền tảng trên 1 trình duyệt.", "INFO")
+        finally:
+            await master_driver.close_browser()
+

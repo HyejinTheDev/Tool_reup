@@ -9,14 +9,15 @@ from typing import Callable, Optional
 logger = logging.getLogger("base_driver")
 
 class BaseDriver:
-    def __init__(self, account_id: str, profile_name: str, chrome_path: Optional[str] = None, headless: bool = False, log_callback: Optional[Callable[[str], None]] = None):
+    def __init__(self, account_id: str, profile_name: str, chrome_path: Optional[str] = None, headless: bool = False, log_callback: Optional[Callable[[str], None]] = None, browser = None, page = None):
         self.account_id = account_id
         self.profile_name = profile_name
         self.chrome_path = chrome_path
         self.headless = headless
         self.log_callback = log_callback
-        self.browser = None
-        self.page = None
+        self.browser = browser
+        self.page = page
+        self.is_shared_browser = browser is not None
 
     def log(self, message: str, level: str = "INFO"):
         formatted_message = f"[{level}] [{self.account_id}] {message}"
@@ -47,6 +48,18 @@ class BaseDriver:
 
     async def start_browser(self):
         """Starts Chrome browser with account profile using nodriver."""
+        if self.is_shared_browser and self.browser:
+            self.log("Using shared Chrome browser window (multi-tab mode)...")
+            if not self.page:
+                self.page = await self.browser.get("about:blank", new_tab=True)
+            import nodriver.cdp.dom as dom
+            try:
+                await self.page.send(dom.enable())
+                await self.page.send(dom.get_document())
+            except Exception as e:
+                self.log(f"Warning syncing DOM on tab: {e}", "WARN")
+            return
+
         chrome_exe = self.find_chrome_executable()
         
         # Profile directory inside project workspace (root directory)
@@ -109,6 +122,16 @@ class BaseDriver:
 
     async def close_browser(self):
         """Close browser safely."""
+        if self.is_shared_browser:
+            self.log("Closing tab in shared browser window...")
+            if self.page:
+                try:
+                    await self.page.close()
+                except Exception:
+                    pass
+                self.page = None
+            return
+
         if self.browser:
             self.log("Closing browser...")
             try:
