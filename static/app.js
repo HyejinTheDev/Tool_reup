@@ -299,16 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (index > -1) {
                     selectedPlatforms.splice(index, 1);
-                    card.classList.remove('selected');
                 } else {
                     selectedPlatforms.push(accId);
-                    card.classList.add('selected');
                 }
                 
-                // Toggle YouTube / Facebook specific fields
+                renderPublishPlatforms();
                 updateYoutubeFieldsVisibility();
-                
-                // Update live mockup labels based on selected account
                 updateMockupProfileLabels();
             });
         });

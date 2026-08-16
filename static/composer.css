@@ -53,6 +53,11 @@
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
+    pointer-events: auto;
+}
+
+.channel-chip-card * {
+    pointer-events: none;
 }
 
 .channel-chip-card:hover {
@@ -63,7 +68,7 @@
 
 .channel-chip-card.selected {
     border-color: var(--primary);
-    background: rgba(142, 45, 226, 0.12);
+    background: rgba(142, 45, 226, 0.15);
     box-shadow: 0 0 12px rgba(142, 45, 226, 0.35);
 }
 
@@ -105,13 +110,13 @@
 }
 
 .channel-chip-check {
+    display: none;
     font-size: 16px;
-    color: rgba(255, 255, 255, 0.15);
-    transition: all 0.2s ease;
+    color: #00f2fe;
 }
 
 .channel-chip-card.selected .channel-chip-check {
-    color: #00f2fe;
+    display: flex;
 }
 
 /* Text Editor Block */
