@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import json
 import nodriver as uc
 from typing import Callable, Optional
 
@@ -161,6 +162,7 @@ class BaseDriver:
         import nodriver.cdp.dom as dom
         from nodriver.core.element import Element
         
+        safe_sel = json.dumps(selector)
         js_code = f"""
         (function() {{
             function findElement(selector, startNode = document) {{
@@ -176,7 +178,7 @@ class BaseDriver:
                 }}
                 return null;
             }}
-            return findElement("{selector}");
+            return findElement({safe_sel});
         }})()
         """
         try:
@@ -224,6 +226,7 @@ class BaseDriver:
 
     async def js_click(self, selector: str, timeout: float = 30.0) -> bool:
         """Finds an element piercing shadow roots and clicks it in JS, waiting if necessary."""
+        safe_sel = json.dumps(selector)
         js_code = f"""
         (function() {{
             function findElements(selector, startNode = document, results = []) {{
@@ -252,7 +255,7 @@ class BaseDriver:
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
             const startNode = getStartNode();
-            const matches = findElements("{selector}", startNode);
+            const matches = findElements({safe_sel}, startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
@@ -290,6 +293,7 @@ class BaseDriver:
         """
         from nodriver.cdp import input_ as cdp_input
         
+        safe_sel = json.dumps(selector)
         # Step 1: JS to find element, scroll into view, store coords in window globals
         js_find = f"""
         (function() {{
@@ -318,7 +322,7 @@ class BaseDriver:
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
             const startNode = getStartNode();
-            const matches = findElements("{selector}", startNode);
+            const matches = findElements({safe_sel}, startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
@@ -398,7 +402,8 @@ class BaseDriver:
 
     async def js_type(self, selector: str, text: str, timeout: float = 30.0) -> bool:
         """Finds an element piercing shadow roots and inputs text in JS, waiting if necessary."""
-        safe_text = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+        safe_sel = json.dumps(selector)
+        safe_txt = json.dumps(text)
         js_code = f"""
         (function() {{
             function findElements(selector, startNode = document, results = []) {{
@@ -427,7 +432,7 @@ class BaseDriver:
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
             const startNode = getStartNode();
-            const matches = findElements("{selector}", startNode);
+            const matches = findElements({safe_sel}, startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
@@ -440,8 +445,8 @@ class BaseDriver:
             }}
             if (el && isVisible(el)) {{
                 el.focus();
-                el.innerText = "{safe_text}";
-                el.value = "{safe_text}";
+                el.innerText = {safe_txt};
+                el.value = {safe_txt};
                 el.dispatchEvent(new Event('input', {{ bubbles: true }}));
                 el.dispatchEvent(new Event('change', {{ bubbles: true }}));
                 return true;
@@ -463,7 +468,7 @@ class BaseDriver:
 
     async def js_click_text(self, text: str, timeout: float = 30.0) -> bool:
         """Finds an element containing specific text (piercing shadow roots) and clicks it."""
-        safe_text = text.replace("'", "\\'")
+        safe_txt = json.dumps(text)
         js_code = f"""
         (function() {{
             function collectMatches(txt, node = document, results = []) {{
@@ -498,7 +503,7 @@ class BaseDriver:
                 return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
             }}
             const startNode = getStartNode();
-            const matches = collectMatches("{safe_text}", startNode);
+            const matches = collectMatches({safe_txt}, startNode);
             let el = null;
             if (matches.length > 0) {{
                 for (let i = matches.length - 1; i >= 0; i--) {{
