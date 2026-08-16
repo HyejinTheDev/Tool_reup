@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 from typing import Optional
 from app.infrastructure.automation.base_driver import BaseDriver
@@ -50,55 +51,106 @@ class FacebookDriver(BaseDriver, UploaderGateway):
         if not is_logged_in:
             raise TimeoutError("Login timeout: User did not login to Meta Business Suite within 5 minutes.")
 
-        # 2. Select File
-        self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element_pierce("input[type='file'][accept*='video']", timeout=5, log_err=False)
-        if not file_input:
-            file_input = await self.wait_for_element_pierce("input[type='file']", timeout=5, log_err=False)
-            
-        if not file_input:
-            # Try clicking 'Thêm video' / 'Add video' button to reveal file input
-            self.log("Clicking 'Thêm video' / 'Add video' button (CDP click)...")
+        # 2. Click "Thêm video" button first, then find file input
+        self.log("Looking for 'Thêm video' / 'Add video' button...")
+        
+        # First, try to click "Thêm video" button using precise JS
+        click_add_video_js = """
+        (function() {
+            // Find all spans containing exact text "Thêm video" or "Add video"
+            const allSpans = document.querySelectorAll('span');
+            for (const span of allSpans) {
+                const text = span.textContent.trim();
+                if (text === 'Thêm video' || text === 'Add video') {
+                    // Click the closest clickable parent (div[role='button'] or the span itself)
+                    const clickTarget = span.closest('[role="button"]') || span.closest('button') || span;
+                    clickTarget.click();
+                    return 'clicked:' + text;
+                }
+            }
+            return 'not_found';
+        })()
+        """
+        try:
+            click_result = await self.page.evaluate(click_add_video_js)
+            self.log(f"'Thêm video' button JS result: {click_result}")
+        except Exception as e:
+            self.log(f"JS click 'Thêm video' failed: {e}", "WARN")
+            # Fallback to CDP click
             await self.cdp_click_text("Thêm video", timeout=5)
-            await self.cdp_click_text("Add video", timeout=5)
-            await self.delay(3)
-            file_input = await self.wait_for_element_pierce("input[type='file'][accept*='video']", timeout=5, log_err=False)
-            if not file_input:
-                file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
-            
-        if not file_input:
-            file_input = await self.wait_for_element("input[type='file']", timeout=5)
-            
-        if not file_input:
-            raise Exception("Could not find file input element on Facebook Composer page.")
-
-        await file_input.send_file(os.path.abspath(video_path))
+        
+        await self.delay(3)
+        
+        # 3. Now find the file input and set file
+        self.log(f"Uploading file: {video_path}")
+        
+        # Strategy A: Use CDP set_file_via_cdp (most reliable)
+        file_set = await self.set_file_via_cdp("input[type='file'][accept*='video']", video_path)
+        
+        if not file_set:
+            self.log("Video-specific file input not found, trying generic file input...", "WARN")
+            file_set = await self.set_file_via_cdp("input[type='file']", video_path)
+        
+        if not file_set:
+            # Strategy B: Try nodriver's native page.select (no pierce needed on Facebook)
+            self.log("CDP file set failed, trying nodriver native select...", "WARN")
+            try:
+                file_input = await self.page.select("input[type='file']")
+                if file_input:
+                    await file_input.send_file(os.path.abspath(video_path))
+                    file_set = True
+                    self.log("File set via nodriver native select.")
+            except Exception as e:
+                self.log(f"Nodriver native select failed: {e}", "WARN")
+        
+        if not file_set:
+            raise Exception("Could not find or set file on Facebook Composer page after all attempts.")
+        
         self.log("Video file selected. Waiting for upload and processing (may take 15-30 seconds)...")
         await self.delay(20)
 
-        # 3. Fill Description/Caption (using description)
+        # 4. Fill Description/Caption (using description)
         self.log("Entering caption...")
-        await self.js_type("div[contenteditable='true']", description, timeout=5)
-        await self.js_type("textarea", description, timeout=5)
+        caption_set = False
+        
+        # Try contenteditable div first (Reels composer)
+        try:
+            caption_js = """
+            (function() {
+                const editors = document.querySelectorAll('div[contenteditable="true"]');
+                for (const ed of editors) {
+                    if (ed.offsetParent !== null) {
+                        ed.focus();
+                        ed.textContent = '';
+                        document.execCommand('insertText', false, %s);
+                        return true;
+                    }
+                }
+                return false;
+            })()
+            """ % json.dumps(description)
+            caption_set = await self.page.evaluate(caption_js)
+        except Exception as e:
+            self.log(f"Caption via contenteditable failed: {e}", "WARN")
+        
+        if not caption_set:
+            await self.js_type("div[contenteditable='true']", description, timeout=5)
+            await self.js_type("textarea", description, timeout=5)
+        
         self.log(f"Caption set: {description}")
 
-        # 4. Navigate Steps (Next -> Next -> Share/Publish)
+        # 5. Navigate Steps (Next -> Next -> Share/Publish)
         for step in range(3):
             self.log(f"Attempting step navigation (Step {step+1}/3)...")
-            clicked = await self.cdp_click_text("Tiếp", timeout=3)
-            if not clicked:
-                clicked = await self.cdp_click_text("Next", timeout=3)
-            if not clicked:
-                clicked = await self.cdp_click_text("Chia sẻ", timeout=3)
-            if not clicked:
-                clicked = await self.cdp_click_text("Share", timeout=3)
-            if not clicked:
-                clicked = await self.cdp_click_text("Đăng", timeout=3)
-            if not clicked:
-                clicked = await self.cdp_click_text("Publish", timeout=3)
+            clicked = False
+            for btn_text in ["Tiếp", "Next", "Chia sẻ", "Share", "Đăng", "Publish"]:
+                if not clicked:
+                    clicked = await self.cdp_click_text(btn_text, timeout=3)
+                    if clicked:
+                        self.log(f"Clicked '{btn_text}' (Step {step+1}). Waiting...")
+                        break
                 
             if clicked:
-                self.log(f"Navigation button clicked (Step {step+1}). Waiting...")
                 await self.delay(4)
             else:
                 self.log("No further navigation or publish button found.", "INFO")

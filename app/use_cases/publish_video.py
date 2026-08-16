@@ -123,22 +123,19 @@ class PublishVideoUseCase:
         shared_browser = master_driver.browser
         
         try:
-            # 2. Create a Tab for each account
-            tasks = []
+            # 2. Run each account SEQUENTIALLY to avoid WebSocket CDP conflicts
+            account_results = []
             for i, acc_id in enumerate(account_ids):
                 if i == 0:
                     page = shared_browser.main_tab
                 else:
                     page = await shared_browser.get("about:blank", new_tab=True)
-                    
-                tasks.append(
-                    self._publish_single_account(
-                        video, acc_id, chrome_path, headless, send_sse_log_func, shared_browser, page
-                    )
-                )
                 
-            # 3. Run all tabs in parallel concurrently
-            account_results = await asyncio.gather(*tasks)
+                await send_sse_log_func(f"--- Bắt đầu tải lên nền tảng {i+1}/{len(account_ids)} ---", "INFO")
+                result = await self._publish_single_account(
+                    video, acc_id, chrome_path, headless, send_sse_log_func, shared_browser, page
+                )
+                account_results.append(result)
             
             # Consolidate results into database
             videos = self.repository.get_videos()

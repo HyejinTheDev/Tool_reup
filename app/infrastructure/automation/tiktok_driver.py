@@ -23,7 +23,10 @@ class TiktokDriver(BaseDriver, UploaderGateway):
         self.log("Checking login status...")
         
         for i in range(60):
-            current_url = self.page.url
+            try:
+                current_url = await self.page.evaluate("window.location.href")
+            except Exception:
+                current_url = self.page.url or ""
             if "login" in current_url or "signup" in current_url:
                 self.log(f"Not logged in. Current URL: {current_url}. Waiting for manual login in the browser (attempt {i+1}/60)...", "WARN")
                 await self.delay(5)

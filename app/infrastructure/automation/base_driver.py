@@ -173,6 +173,52 @@ class BaseDriver:
         """Standard delay helper."""
         await asyncio.sleep(seconds)
 
+    async def set_file_via_cdp(self, selector: str, file_path: str) -> bool:
+        """
+        Uses CDP DOM.setFileInputFiles directly to set a file on an input element.
+        This bypasses nodriver Element limitations and works reliably on all sites.
+        """
+        import nodriver.cdp.dom as dom
+        import nodriver.cdp.runtime as runtime
+        
+        abs_path = os.path.abspath(file_path).replace("\\", "/")
+        safe_sel = json.dumps(selector)
+        
+        try:
+            # 1. Get document root
+            await self.page.send(dom.get_document())
+            
+            # 2. Evaluate JS to get remote object reference to the input element
+            js_code = f"document.querySelector({safe_sel})"
+            res_tuple = await self.page.send(runtime.evaluate(
+                expression=js_code,
+                return_by_value=False
+            ))
+            
+            if not res_tuple or not res_tuple[0] or not res_tuple[0].object_id:
+                self.log(f"set_file_via_cdp: Could not find element '{selector}'", "WARN")
+                return False
+            
+            object_id = res_tuple[0].object_id
+            
+            # 3. Resolve to DOM node
+            node_id = await self.page.send(dom.request_node(object_id=object_id))
+            if not node_id:
+                self.log(f"set_file_via_cdp: Could not resolve node for '{selector}'", "WARN")
+                return False
+            
+            # 4. Set file using CDP
+            await self.page.send(dom.set_file_input_files(
+                files=[abs_path],
+                node_id=node_id
+            ))
+            
+            self.log(f"set_file_via_cdp: File set successfully via CDP on '{selector}'")
+            return True
+        except Exception as e:
+            self.log(f"set_file_via_cdp error: {e}", "WARN")
+            return False
+
     async def select_pierce(self, selector: str):
         """Selects an element piercing all shadow roots natively, returning a nodriver Element."""
         import nodriver.cdp.runtime as runtime
