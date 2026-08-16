@@ -56,7 +56,11 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         # 2. Open Upload Dialog
         self.log("Opening YouTube Upload Dialog...")
-        current_url = self.page.url
+        try:
+            current_url = await self.page.evaluate("window.location.href")
+        except Exception:
+            current_url = self.page.url or ""
+            
         if "?d=ud" not in current_url and "&d=ud" not in current_url:
             upload_url = current_url + ("&d=ud" if "?" in current_url else "?d=ud")
             self.log(f"Navigating to upload trigger URL: {upload_url}")
@@ -64,32 +68,22 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             await self.delay(3)
 
         # Fallback click trigger if dialog isn't visible yet
-        dialog = await self.wait_for_element_pierce("ytcp-uploads-dialog", timeout=3, log_err=False)
+        dialog = await self.wait_for_element_pierce("ytcp-uploads-dialog", timeout=5, log_err=False)
         if not dialog:
             self.log("Dialog not popped automatically by URL, attempting deep ShadowRoot button clicks...")
-            js_trigger = """
-            (function() {
-                const createBtn = document.querySelector('#create-icon');
-                if (createBtn) {
-                    const inner = createBtn.shadowRoot ? createBtn.shadowRoot.querySelector('button, #button') : createBtn;
-                    if (inner) inner.click();
-                    return true;
-                }
-                const uploadBtn = document.querySelector('#upload-icon') || document.querySelector('#upload-button');
-                if (uploadBtn) {
-                    const inner = uploadBtn.shadowRoot ? uploadBtn.shadowRoot.querySelector('button, #button') : uploadBtn;
-                    if (inner) inner.click();
-                    return true;
-                }
-                return false;
-            })()
-            """
             try:
-                await self.page.evaluate(js_trigger)
+                # Click the 'Create' button (#create-icon) which is inside ytcp-header shadow DOM
+                clicked_create = await self.js_click("#create-icon", timeout=5)
+                if clicked_create:
+                    await self.delay(1.5)
+                    # Click the 'Upload videos' button (#upload-button) inside the dropdown menu
+                    await self.js_click("#upload-button", timeout=5)
+                else:
+                    # Fallback to direct upload button on dashboard if present
+                    await self.js_click("#upload-icon", timeout=5)
                 await self.delay(2)
-                await self.js_click("#upload-button", timeout=3)
             except Exception as e:
-                self.log(f"Warning on JS trigger fallback: {e}", "WARN")
+                self.log(f"Warning on fallback clicks: {e}", "WARN")
 
         # 3. Select File
         self.log(f"Uploading file: {video_path}")

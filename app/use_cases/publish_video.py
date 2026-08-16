@@ -124,7 +124,6 @@ class PublishVideoUseCase:
         
         try:
             # 2. Run each account SEQUENTIALLY to avoid WebSocket CDP conflicts
-            account_results = []
             for i, acc_id in enumerate(account_ids):
                 if i == 0:
                     page = shared_browser.main_tab
@@ -132,27 +131,26 @@ class PublishVideoUseCase:
                     page = await shared_browser.get("about:blank", new_tab=True)
                 
                 await send_sse_log_func(f"--- Bắt đầu tải lên nền tảng {i+1}/{len(account_ids)} ---", "INFO")
-                result = await self._publish_single_account(
+                acc_id, res = await self._publish_single_account(
                     video, acc_id, chrome_path, headless, send_sse_log_func, shared_browser, page
                 )
-                account_results.append(result)
-            
-            # Consolidate results into database
-            videos = self.repository.get_videos()
-            for v in videos:
-                if v.id == video_id:
-                    for acc_id, res in account_results:
+                
+                # Consolidate this specific result into database immediately
+                videos = self.repository.get_videos()
+                for v in videos:
+                    if v.id == video_id:
                         v.results[acc_id] = res
-                    
-                    results = v.results
-                    if len(results) == len(account_ids) and all(r.get("success", False) for r in results.values()):
-                        v.status = "completed"
-                    elif any(r.get("success", False) for r in results.values()):
-                        v.status = "partial"
-                    else:
-                        v.status = "failed"
-                    break
-            self.repository.save_videos(videos)
+                        # Update overall status dynamically based on current accumulated results
+                        results = v.results
+                        if len(results) == len(account_ids) and all(r.get("success", False) for r in results.values()):
+                            v.status = "completed"
+                        elif any(r.get("success", False) for r in results.values()):
+                            v.status = "partial"
+                        else:
+                            v.status = "failed"
+                        break
+                self.repository.save_videos(videos)
+            
             await send_sse_log_func("Hoàn thành tác vụ đăng video song song đa nền tảng trên 1 trình duyệt.", "INFO")
         finally:
             await master_driver.close_browser()
