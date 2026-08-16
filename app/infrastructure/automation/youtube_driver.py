@@ -29,20 +29,24 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
             except Exception:
                 current_url = self.page.url or ""
 
-            # Check if dashboard loaded (by checking create-icon, upload-button, or navigation menu)
             dashboard_loaded = False
-            
-            create_btn = await self.wait_for_element_pierce("#create-icon", timeout=2, log_err=False)
-            if create_btn:
-                dashboard_loaded = True
-            else:
-                center_upload = await self.wait_for_element_pierce("#upload-button", timeout=2, log_err=False)
-                if center_upload:
-                    dashboard_loaded = True
-                else:
-                    menu_item = await self.wait_for_element_pierce("#menu-item-dashboard", timeout=2, log_err=False)
-                    if menu_item:
-                        dashboard_loaded = True
+            try:
+                js_check = """
+                (function() {
+                    function hasEl(sel, node = document) {
+                        if (node.querySelector(sel)) return true;
+                        const all = node.querySelectorAll('*');
+                        for (const child of all) {
+                            if (child.shadowRoot && hasEl(sel, child.shadowRoot)) return true;
+                        }
+                        return false;
+                    }
+                    return hasEl('#create-icon') || hasEl('#upload-button') || hasEl('#menu-item-dashboard');
+                })()
+                """
+                dashboard_loaded = await self.page.evaluate(js_check)
+            except Exception:
+                pass
                         
             if dashboard_loaded:
                 is_logged_in = True
