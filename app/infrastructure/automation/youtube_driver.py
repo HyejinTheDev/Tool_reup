@@ -117,6 +117,93 @@ class YoutubeDriver(BaseDriver, UploaderGateway):
 
         await self.delay(2)
 
+        # DIAGNOSTIC: Kiểm tra trạng thái radio sau khi click
+        try:
+            radio_status = await self.page.evaluate("""
+                (function() {
+                    function findElements(selector, startNode = document, results = []) {
+                        const el = startNode.querySelector(selector);
+                        if (el) results.push(el);
+                        const all = startNode.querySelectorAll('*');
+                        for (const node of all) {
+                            if (node.shadowRoot) findElements(selector, node.shadowRoot, results);
+                        }
+                        return results;
+                    }
+                    function getStartNode() {
+                        const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                        for (let i = dialogs.length - 1; i >= 0; i--) {
+                            const d = dialogs[i];
+                            if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) {
+                                return d.shadowRoot || d;
+                            }
+                        }
+                        return document;
+                    }
+                    const startNode = getStartNode();
+                    const matches = findElements('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]', startNode);
+                    if (matches.length === 0) return 'NOT_FOUND';
+                    const el = matches[matches.length - 1];
+                    const checked = el.checked;
+                    const ariaChecked = el.getAttribute('aria-checked');
+                    const active = el.hasAttribute('active');
+                    
+                    // Also check Next button status
+                    const nextBtns = findElements('#next-button', startNode);
+                    let nextDisabled = 'unknown';
+                    if (nextBtns.length > 0) {
+                        const nb = nextBtns[nextBtns.length - 1];
+                        nextDisabled = nb.disabled || nb.getAttribute('aria-disabled') === 'true';
+                    }
+                    
+                    return 'checked=' + checked + ' aria-checked=' + ariaChecked + ' active=' + active + ' next-disabled=' + nextDisabled;
+                })()
+            """)
+            self.log(f"DIAGNOSTIC: Radio button status after click: {radio_status}")
+        except Exception as e:
+            self.log(f"DIAGNOSTIC error: {e}", "WARN")
+
+        # Nếu radio chưa được chọn, thử phương thức nodriver element.click()
+        try:
+            is_checked = await self.page.evaluate("""
+                (function() {
+                    function findElements(selector, startNode = document, results = []) {
+                        const el = startNode.querySelector(selector);
+                        if (el) results.push(el);
+                        const all = startNode.querySelectorAll('*');
+                        for (const node of all) {
+                            if (node.shadowRoot) findElements(selector, node.shadowRoot, results);
+                        }
+                        return results;
+                    }
+                    function getStartNode() {
+                        const dialogs = document.querySelectorAll('ytcp-uploads-dialog');
+                        for (let i = dialogs.length - 1; i >= 0; i--) {
+                            const d = dialogs[i];
+                            if (d.offsetWidth || d.offsetHeight || d.getClientRects().length) return d.shadowRoot || d;
+                        }
+                        return document;
+                    }
+                    const matches = findElements('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]', getStartNode());
+                    if (matches.length === 0) return false;
+                    const el = matches[matches.length - 1];
+                    return el.getAttribute('aria-checked') === 'true';
+                })()
+            """)
+            if not is_checked:
+                self.log("Radio NOT checked after all click attempts! Trying nodriver element.click()...", "WARN")
+                element = await self.wait_for_element_pierce('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]', timeout=5)
+                if element:
+                    await element.click()
+                    self.log("nodriver element.click() executed!")
+                    await self.delay(2)
+                else:
+                    self.log("Could not find element via select_pierce!", "WARN")
+            else:
+                self.log("Radio IS checked - audience selection SUCCESSFUL!")
+        except Exception as e:
+            self.log(f"Fallback click error: {e}", "WARN")
+
         # 5. Navigate through steps (Click Next) - dùng CDP click cho nút Next
         self.log("Navigating Details -> Video Elements...")
         await self.cdp_click("#next-button", timeout=90)

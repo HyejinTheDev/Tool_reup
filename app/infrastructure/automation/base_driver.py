@@ -285,18 +285,17 @@ class BaseDriver:
     async def cdp_click(self, selector: str, timeout: float = 30.0) -> bool:
         """Finds element piercing shadow roots and performs a REAL CDP mouse click (isTrusted: true).
         
-        Unlike js_click which uses el.click() (synthetic, isTrusted: false),
-        this method uses CDP Input.dispatchMouseEvent which generates trusted
-        mouse events that Polymer Web Components respond to correctly.
+        Uses window globals to pass coordinates (avoids page.evaluate return type issues).
+        Includes detailed logging for diagnostics.
         """
         from nodriver.cdp import input_ as cdp_input
         
-        js_code = f"""
+        # Step 1: JS to find element, scroll into view, store coords in window globals
+        js_find = f"""
         (function() {{
             function findElements(selector, startNode = document, results = []) {{
                 const el = startNode.querySelector(selector);
                 if (el) results.push(el);
-                
                 const all = startNode.querySelectorAll('*');
                 for (const node of all) {{
                     if (node.shadowRoot) {{
@@ -333,40 +332,65 @@ class BaseDriver:
             if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
                 el.scrollIntoView({{block: 'center'}});
                 const rect = el.getBoundingClientRect();
-                return rect.left + ',' + rect.top + ',' + rect.width + ',' + rect.height;
+                window.__cdp_x = rect.left + rect.width / 2;
+                window.__cdp_y = rect.top + rect.height / 2;
+                window.__cdp_tag = el.tagName;
+                return true;
             }}
-            return '';
+            window.__cdp_x = 0;
+            window.__cdp_y = 0;
+            window.__cdp_tag = '';
+            return false;
         }})()
         """
+        
         start_time = asyncio.get_event_loop().time()
         while asyncio.get_event_loop().time() - start_time < timeout:
             try:
-                res = await self.page.evaluate(js_code)
-                if res and isinstance(res, str) and ',' in str(res):
-                    parts = str(res).split(',')
-                    left, top, width, height = float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3])
-                    x = left + width / 2
-                    y = top + height / 2
-                    
-                    # Dispatch real mouse events via CDP (isTrusted: true)
-                    await self.page.send(cdp_input.dispatch_mouse_event(
-                        type_="mousePressed",
-                        x=x, y=y,
-                        button=cdp_input.MouseButton.LEFT,
-                        click_count=1,
-                        pointer_type="mouse"
-                    ))
-                    await asyncio.sleep(0.05)
-                    await self.page.send(cdp_input.dispatch_mouse_event(
-                        type_="mouseReleased",
-                        x=x, y=y,
-                        button=cdp_input.MouseButton.LEFT,
-                        click_count=1,
-                        pointer_type="mouse"
-                    ))
-                    return True
+                # Step 1: Find element
+                found = await self.page.evaluate(js_find)
+                self.log(f"cdp_click '{selector}': found={found} (type={type(found).__name__})")
+                
+                if not found:
+                    await asyncio.sleep(0.5)
+                    continue
+                
+                # Step 2: Read coordinates (as separate numbers - guaranteed to work)
+                x = await self.page.evaluate("window.__cdp_x")
+                y = await self.page.evaluate("window.__cdp_y")
+                tag = await self.page.evaluate("window.__cdp_tag")
+                self.log(f"cdp_click '{selector}': coordinates x={x}, y={y}, tag={tag}")
+                
+                if not x or not y:
+                    self.log(f"cdp_click '{selector}': invalid coordinates, retrying...", "WARN")
+                    await asyncio.sleep(0.5)
+                    continue
+                
+                x_val = float(x) if not isinstance(x, float) else x
+                y_val = float(y) if not isinstance(y, float) else y
+                
+                # Step 3: Send CDP mouse events (isTrusted: true)
+                self.log(f"cdp_click '{selector}': dispatching mousePressed at ({x_val}, {y_val})")
+                await self.page.send(cdp_input.dispatch_mouse_event(
+                    type_="mousePressed",
+                    x=x_val, y=y_val,
+                    button=cdp_input.MouseButton.LEFT,
+                    click_count=1,
+                    pointer_type="mouse"
+                ))
+                await asyncio.sleep(0.05)
+                await self.page.send(cdp_input.dispatch_mouse_event(
+                    type_="mouseReleased",
+                    x=x_val, y=y_val,
+                    button=cdp_input.MouseButton.LEFT,
+                    click_count=1,
+                    pointer_type="mouse"
+                ))
+                self.log(f"cdp_click '{selector}': CDP mouse events dispatched successfully!")
+                return True
+                
             except Exception as e:
-                self.log(f"cdp_click error: {e}", "WARN")
+                self.log(f"cdp_click '{selector}' error: {type(e).__name__}: {e}", "WARN")
             await asyncio.sleep(0.5)
         self.log(f"Timeout trying to CDP click: '{selector}'", "WARN")
         return False
