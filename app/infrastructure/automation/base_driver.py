@@ -256,28 +256,7 @@ class BaseDriver:
                 if (!el) el = matches[matches.length - 1];
             }}
             if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
-                // 1. Click outer custom element and dispatch native click event
                 el.click();
-                el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
-                
-                // 2. If it is a Polymer element, click its internal shadow container
-                if (el.shadowRoot) {{
-                    const inner = el.shadowRoot.querySelector('#radioContainer') || 
-                                  el.shadowRoot.querySelector('#button') ||
-                                  el.shadowRoot.querySelector('.button');
-                    if (inner) {{
-                        inner.click();
-                        inner.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
-                    }}
-                }}
-                
-                // 3. Force checked state if it's a radio/checkbox/toggle
-                const tagName = el.tagName.toLowerCase();
-                if (tagName.includes('radio') || tagName.includes('checkbox') || tagName.includes('toggle')) {{
-                    el.checked = true;
-                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                }}
                 return true;
             }}
             return false;
@@ -410,22 +389,6 @@ class BaseDriver:
             }}
             if (el && isVisible(el) && !el.disabled && !el.getAttribute('disabled')) {{
                 el.click();
-                el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
-                if (el.shadowRoot) {{
-                    const inner = el.shadowRoot.querySelector('#radioContainer') || 
-                                  el.shadowRoot.querySelector('#button') ||
-                                  el.shadowRoot.querySelector('.button');
-                    if (inner) {{
-                        inner.click();
-                        inner.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
-                    }}
-                }}
-                const tagName = el.tagName.toLowerCase();
-                if (tagName.includes('radio') || tagName.includes('checkbox') || tagName.includes('toggle')) {{
-                    el.checked = true;
-                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                }}
                 return true;
             }}
             return false;
