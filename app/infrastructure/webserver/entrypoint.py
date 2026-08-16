@@ -34,6 +34,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import Request
+
+# No-Cache Middleware for Static Files
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Directories setup
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
@@ -64,7 +76,14 @@ async def send_sse_log(message: str, level: str = "INFO"):
 def get_dashboard():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     return JSONResponse({"error": "Giao diện người dùng đang được xây dựng."}, status_code=503)
 
 @app.get("/api/logs")
