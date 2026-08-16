@@ -498,9 +498,13 @@ class BaseDriver:
                          tagName === 'span' || 
                          tagName === 'a' || 
                          tagName === 'ytcp-button' ||
-                         tagName === 'tp-yt-paper-button') && 
-                        child.innerText && child.innerText.trim().toLowerCase() === txt.toLowerCase()) {{
-                        results.push(child);
+                         tagName === 'tp-yt-paper-button' ||
+                         tagName === 'tp-yt-paper-radio-button') && 
+                        child.innerText) {{
+                        const cleanText = child.innerText.trim().toLowerCase();
+                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {
+                            results.push(child);
+                        }
                     }}
                     if (child.shadowRoot) {{
                         collectMatches(txt, child.shadowRoot, results);
@@ -572,11 +576,16 @@ class BaseDriver:
                     const tagName = child.tagName.toLowerCase();
                     if ((tagName === 'tp-yt-paper-radio-button' || 
                          tagName === 'ytcp-button' ||
+                         tagName === 'tp-yt-paper-button' ||
                          tagName === 'button' ||
                          tagName === 'div' ||
+                         tagName === 'a' ||
                          tagName === 'span') && 
-                        child.innerText && child.innerText.trim().toLowerCase() === txt.toLowerCase()) {{
-                        results.push(child);
+                        child.innerText) {{
+                        const cleanText = child.innerText.trim().toLowerCase();
+                        if (cleanText.includes(txt.toLowerCase()) && cleanText.length < txt.length + 15) {
+                            results.push(child);
+                        }
                     }}
                     if (child.shadowRoot) {{
                         collectMatches(txt, child.shadowRoot, results);

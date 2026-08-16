@@ -48,14 +48,19 @@ class FacebookDriver(BaseDriver, UploaderGateway):
 
         # 2. Select File
         self.log(f"Uploading file: {video_path}")
-        file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
+        file_input = await self.wait_for_element_pierce("input[type='file'][accept*='video']", timeout=5, log_err=False)
+        if not file_input:
+            file_input = await self.wait_for_element_pierce("input[type='file']", timeout=5, log_err=False)
+            
         if not file_input:
             # Try clicking 'Thêm video' / 'Add video' button to reveal file input
             self.log("Clicking 'Thêm video' / 'Add video' button (CDP click)...")
-            await self.cdp_click_text("Thêm video", timeout=3)
-            await self.cdp_click_text("Add video", timeout=3)
-            await self.delay(2)
-            file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
+            await self.cdp_click_text("Thêm video", timeout=5)
+            await self.cdp_click_text("Add video", timeout=5)
+            await self.delay(3)
+            file_input = await self.wait_for_element_pierce("input[type='file'][accept*='video']", timeout=5, log_err=False)
+            if not file_input:
+                file_input = await self.wait_for_element_pierce("input[type='file']", timeout=10)
             
         if not file_input:
             file_input = await self.wait_for_element("input[type='file']", timeout=5)
