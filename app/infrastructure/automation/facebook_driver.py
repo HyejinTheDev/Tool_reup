@@ -16,13 +16,9 @@ class FacebookDriver(BaseDriver, UploaderGateway):
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found at: {video_path}")
 
-        if publish_type == "video":
-            self.log("Navigating to Facebook Regular Post Composer...")
-            await self.page.get("https://business.facebook.com/latest/composer?media_type=video")
-        else:
-            self.log("Navigating to Facebook Reels Composer...")
-            await self.page.get("https://business.facebook.com/latest/reels_composer")
-            
+        # Navigate to Personal Facebook Reels Creator (NOT Meta Business Suite)
+        self.log("Navigating to Facebook Reels Creator (facebook.com/reels/create)...")
+        await self.page.get("https://www.facebook.com/reels/create")
         await self.delay(5)
 
         # 1. Login verification & wait loop
@@ -36,84 +32,89 @@ class FacebookDriver(BaseDriver, UploaderGateway):
             except Exception:
                 current_url = self.page.url or ""
                 
-            if "login" in current_url or "facebook.com/login" in current_url:
-                self.log(f"Not logged in. Current URL: {current_url}. Waiting for manual login in the browser (attempt {i+1}/60)...", "WARN")
+            if "/login" in current_url:
+                self.log(f"Not logged in. URL: {current_url}. Waiting for manual login (attempt {i+1}/60)...", "WARN")
                 await self.delay(5)
             else:
-                if "reels_composer" in current_url or "composer" in current_url:
+                if "facebook.com" in current_url:
                     is_logged_in = True
-                    self.log("Successfully detected logged-in session!")
+                    self.log(f"Logged in to Facebook! URL: {current_url}")
                     break
                 else:
-                    self.log("Waiting for Composer page to load...")
+                    self.log(f"Waiting for Facebook to load... URL: {current_url}")
                     await self.delay(3)
 
         if not is_logged_in:
-            raise TimeoutError("Login timeout: User did not login to Meta Business Suite within 5 minutes.")
+            raise TimeoutError("Login timeout: User did not login to Facebook within 5 minutes.")
 
-        # 2. Click "Thêm video" button first, then find file input
-        self.log("Looking for 'Thêm video' / 'Add video' button...")
-        
-        # First, try to click "Thêm video" button using precise JS
-        click_add_video_js = """
-        (function() {
-            // Find all spans containing exact text "Thêm video" or "Add video"
-            const allSpans = document.querySelectorAll('span');
-            for (const span of allSpans) {
-                const text = span.textContent.trim();
-                if (text === 'Thêm video' || text === 'Add video') {
-                    // Click the closest clickable parent (div[role='button'] or the span itself)
-                    const clickTarget = span.closest('[role="button"]') || span.closest('button') || span;
-                    clickTarget.click();
-                    return 'clicked:' + text;
-                }
-            }
-            return 'not_found';
-        })()
-        """
+        # Navigate to reels/create if we got redirected
         try:
-            click_result = await self.page.evaluate(click_add_video_js)
-            self.log(f"'Thêm video' button JS result: {click_result}")
-        except Exception as e:
-            self.log(f"JS click 'Thêm video' failed: {e}", "WARN")
-            # Fallback to CDP click
-            await self.cdp_click_text("Thêm video", timeout=5)
-        
-        await self.delay(3)
-        
-        # 3. Now find the file input and set file
+            current_url = await self.page.evaluate("window.location.href")
+        except Exception:
+            current_url = ""
+        if "reels/create" not in current_url:
+            self.log("Redirected away from Reels Creator, navigating back...")
+            await self.page.get("https://www.facebook.com/reels/create")
+            await self.delay(5)
+
+        # 2. Upload video file
         self.log(f"Uploading file: {video_path}")
         
-        # Strategy A: Use CDP set_file_via_cdp (most reliable)
+        # Try to find file input directly first
         file_set = await self.set_file_via_cdp("input[type='file'][accept*='video']", video_path)
-        
         if not file_set:
-            self.log("Video-specific file input not found, trying generic file input...", "WARN")
             file_set = await self.set_file_via_cdp("input[type='file']", video_path)
         
         if not file_set:
-            # Strategy B: Try nodriver's native page.select (no pierce needed on Facebook)
-            self.log("CDP file set failed, trying nodriver native select...", "WARN")
+            # Click "Thêm video" area to trigger file picker / reveal file input
+            self.log("Clicking 'Thêm video' button...")
+            click_js = """
+            (function() {
+                // Method 1: Find span with exact text
+                const spans = document.querySelectorAll('span');
+                for (const s of spans) {
+                    if (s.textContent.trim().startsWith('Thêm video') || s.textContent.trim() === 'Add video') {
+                        const target = s.closest('[role="button"]') || s.closest('button') || s.parentElement;
+                        if (target) { target.click(); return 'clicked_span'; }
+                    }
+                }
+                // Method 2: Click the drag-drop upload zone
+                const labels = document.querySelectorAll('label');
+                for (const l of labels) { l.click(); return 'clicked_label'; }
+                return 'not_found';
+            })()
+            """
             try:
-                file_input = await self.page.select("input[type='file']")
-                if file_input:
-                    await file_input.send_file(os.path.abspath(video_path))
-                    file_set = True
-                    self.log("File set via nodriver native select.")
+                result = await self.page.evaluate(click_js)
+                self.log(f"Click result: {result}")
             except Exception as e:
-                self.log(f"Nodriver native select failed: {e}", "WARN")
+                self.log(f"JS click failed: {e}", "WARN")
+                await self.cdp_click_text("Thêm video", timeout=5)
+            
+            await self.delay(3)
+            
+            # Retry finding file input
+            file_set = await self.set_file_via_cdp("input[type='file'][accept*='video']", video_path)
+            if not file_set:
+                file_set = await self.set_file_via_cdp("input[type='file']", video_path)
+            if not file_set:
+                try:
+                    fi = await self.page.select("input[type='file']")
+                    if fi:
+                        await fi.send_file(os.path.abspath(video_path))
+                        file_set = True
+                except Exception:
+                    pass
         
         if not file_set:
-            raise Exception("Could not find or set file on Facebook Composer page after all attempts.")
+            raise Exception("Could not upload file to Facebook Reels Creator.")
         
-        self.log("Video file selected. Waiting for upload and processing (may take 15-30 seconds)...")
+        self.log("Video file selected! Waiting for upload processing (15-30s)...")
         await self.delay(20)
 
-        # 4. Fill Description/Caption (using description)
+        # 3. Fill Description/Caption ("Mô tả thước phim của bạn...")
         self.log("Entering caption...")
         caption_set = False
-        
-        # Try contenteditable div first (Reels composer)
         try:
             caption_js = """
             (function() {
@@ -126,41 +127,64 @@ class FacebookDriver(BaseDriver, UploaderGateway):
                         return true;
                     }
                 }
+                const tas = document.querySelectorAll('textarea');
+                for (const ta of tas) {
+                    if (ta.offsetParent !== null) {
+                        ta.focus();
+                        ta.value = %s;
+                        ta.dispatchEvent(new Event('input', {bubbles: true}));
+                        return true;
+                    }
+                }
                 return false;
             })()
-            """ % json.dumps(description)
+            """ % (json.dumps(description), json.dumps(description))
             caption_set = await self.page.evaluate(caption_js)
         except Exception as e:
-            self.log(f"Caption via contenteditable failed: {e}", "WARN")
+            self.log(f"Caption JS failed: {e}", "WARN")
         
         if not caption_set:
             await self.js_type("div[contenteditable='true']", description, timeout=5)
             await self.js_type("textarea", description, timeout=5)
-        
         self.log(f"Caption set: {description}")
+        await self.delay(2)
 
-        # 5. Navigate Steps (Next -> Next -> Share/Publish)
-        for step in range(3):
-            self.log(f"Attempting step navigation (Step {step+1}/3)...")
-            clicked = False
-            for btn_text in ["Tiếp", "Next", "Chia sẻ", "Share", "Đăng", "Publish"]:
-                if not clicked:
-                    clicked = await self.cdp_click_text(btn_text, timeout=3)
-                    if clicked:
-                        self.log(f"Clicked '{btn_text}' (Step {step+1}). Waiting...")
-                        break
-                
-            if clicked:
-                await self.delay(4)
-            else:
-                self.log("No further navigation or publish button found.", "INFO")
+        # 4. Click "Đăng" (Publish) button — personal Facebook has a direct Publish button
+        self.log("Clicking Publish button ('Đăng')...")
+        publish_clicked = False
+        for btn_text in ["Đăng", "Publish", "Đăng thước phim", "Publish Reel"]:
+            publish_clicked = await self.cdp_click_text(btn_text, timeout=3)
+            if publish_clicked:
+                self.log(f"Clicked '{btn_text}' button!")
                 break
+        
+        if not publish_clicked:
+            try:
+                js_pub = """
+                (function() {
+                    const btns = document.querySelectorAll('div[role="button"], button');
+                    for (const b of btns) {
+                        const t = b.textContent.trim();
+                        if (t === 'Đăng' || t === 'Publish') { b.click(); return 'clicked:' + t; }
+                    }
+                    return 'not_found';
+                })()
+                """
+                r = await self.page.evaluate(js_pub)
+                self.log(f"JS publish: {r}")
+                if "clicked" in str(r):
+                    publish_clicked = True
+            except Exception as e:
+                self.log(f"JS publish failed: {e}", "WARN")
+        
+        if not publish_clicked:
+            self.log("Could not auto-click Publish. Please click manually.", "WARN")
 
         self.log("Waiting for post to complete...")
         await self.delay(10)
 
-        self.log("Facebook upload finished successfully!")
-        return "https://business.facebook.com/latest/reels" if publish_type == "reels" else "https://business.facebook.com/latest/posts"
+        self.log("Facebook Reels upload finished successfully!")
+        return "https://www.facebook.com/reels"
 
     async def delete_post(self, title: str, post_url: Optional[str] = None) -> bool:
         """
